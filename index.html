@@ -327,8 +327,7 @@
         </div>
       </div>
       <div class="actions">
-        <button class="btn" id="pullSharedData" type="button">最新データ</button>
-        <button class="btn" id="newSessionButton" type="button">新しい記録</button>
+        <button class="btn" id="pullSharedData" type="button">最新データ取得</button>
       </div>
     </header>
 
@@ -398,6 +397,8 @@
         <div class="session-title"><div class="eyebrow" id="sessionMeta"></div><h2 id="sessionHeading"></h2></div>
         <div class="session-actions">
           <button class="btn danger" id="discardSession" type="button">保存せず終了</button>
+          <button class="btn hidden" id="openChipInput" type="button">チップ入力</button>
+          <button class="btn" id="saveSession" type="button">保存</button>
           <button class="btn" id="finishSession" type="button">保存して終了</button>
         </div>
       </div>
@@ -408,7 +409,7 @@
           <div id="chipGrid" class="chip-grid"></div>
           <div class="chip-check">
             <span id="chipTotalMessage" class="muted"></span>
-            <button class="btn primary" id="confirmSettlement" type="button" disabled>保存して終了</button>
+            <button class="btn primary" id="confirmSettlement" type="button" disabled>チップを保存</button>
           </div>
         </div>
       </section>
@@ -787,6 +788,7 @@
         byId("sessionMeta").textContent = `${formatDate(session.date)} · ${session.mode}人用 · 点${pointRate(session) === 100 ? 10 : 5}${chipMeta}`;
         byId("sessionHeading").textContent = session.players.join("・");
         byId("gameNumber").textContent = `${session.games.length + 1}G`;
+        byId("openChipInput").classList.toggle("hidden", !session.chipEnabled);
         byId("settlementPanel").classList.add("hidden");
         renderSummary(session);
         renderScoreInputs(session);
@@ -1170,10 +1172,15 @@
         const counts = [...byId("chipGrid").querySelectorAll("input")].map((input) => Number(input.value));
         if (counts.reduce((sum, count) => sum + count, 0) !== session.players.length * 20) return;
         session.chipCounts = counts;
-        session.settledAt = new Date().toISOString();
         persist();
-        showSetup();
-        if (!autoPushIfEnabled()) showToast("記録を保存しました");
+        renderSummary(session);
+        autoPushIfEnabled();
+      }
+
+      function saveSession() {
+        if (!activeSession()) return;
+        persist();
+        autoPushIfEnabled();
       }
 
       function saveAndExit() {
@@ -1236,7 +1243,8 @@
       byId("saveGame").addEventListener("click", saveGame);
       byId("chipEnabled").addEventListener("change", () => byId("chipRateField").classList.toggle("hidden", byId("chipEnabled").value !== "true"));
       byId("confirmSettlement").addEventListener("click", confirmSettlement);
-      byId("newSessionButton").addEventListener("click", showSetup);
+      byId("openChipInput").addEventListener("click", openSettlement);
+      byId("saveSession").addEventListener("click", saveSession);
       byId("discardSession").addEventListener("click", discardSession);
       byId("finishSession").addEventListener("click", saveAndExit);
       byId("pullSharedData").addEventListener("click", pullSharedStore);
