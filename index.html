@@ -206,7 +206,7 @@
     .settlement-total strong { font-size: 22px; }
     .settlement-total.positive strong { color: var(--cp-link); }
     .settlement-total.negative strong { color: var(--cp-danger); }
-    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 18px; align-items: start; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
     .game-panel { overflow: hidden; }
     .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--cp-border); }
     .panel-heading h3 { margin: 0; }
@@ -228,7 +228,7 @@
     .total-state.ok .status-dot { background: var(--cp-success); }
     .total-state.bad .status-dot { background: var(--cp-danger); }
     .total-value { font-family: Consolas, monospace; }
-    .history-panel { overflow: hidden; }
+    .history-panel { width: 100%; min-width: 0; overflow: hidden; }
     .history-list { max-height: 530px; overflow: auto; }
     .empty { padding: 32px 18px; color: var(--cp-text-muted); text-align: center; }
     .history-table { width: 100%; min-width: 560px; border-collapse: collapse; table-layout: fixed; }
@@ -427,7 +427,6 @@
       <div class="session-header">
         <div class="session-title"><div class="eyebrow" id="sessionMeta"></div><h2 id="sessionHeading"></h2></div>
         <div class="session-actions">
-          <button class="btn danger" id="discardSession" type="button">保存せず終了</button>
           <button class="btn hidden" id="openChipInput" type="button">チップ入力</button>
           <button class="btn" id="saveSession" type="button">保存</button>
           <button class="btn" id="finishSession" type="button">保存して終了</button>
@@ -474,6 +473,7 @@
       "use strict";
 
       const STORAGE_KEY = "mahjong-scorebook-v1";
+      const ACTIVE_SESSION_KEY = "mahjong-scorebook-active-session";
       const SUPABASE_URL = "https://qqzrvdscnwdmpdrqdqtz.supabase.co";
       const SUPABASE_KEY = "sb_publishable_KZgbYMI3wmd4KE2FVyW_Xg_TH04wI69";
       const SHARED_ROW_ID = "mahjong-scorebook";
@@ -487,7 +487,6 @@
       let activeSessionId = null;
       let toastTimer = null;
       let pendingArchiveDeleteId = null;
-      let pendingDiscard = false;
       let editingGameId = null;
 
       const byId = (id) => document.getElementById(id);
@@ -665,10 +664,9 @@
 
       function showSetup() {
         activeSessionId = null;
+        sessionStorage.removeItem(ACTIVE_SESSION_KEY);
         editingGameId = null;
         pendingArchiveDeleteId = null;
-        pendingDiscard = false;
-        byId("discardSession").textContent = "保存せず終了";
         setupView.classList.remove("hidden");
         scoreView.classList.add("hidden");
         allScoresView.classList.add("hidden");
@@ -809,6 +807,7 @@
 
       function openSession(id) {
         activeSessionId = id;
+        sessionStorage.setItem(ACTIVE_SESSION_KEY, id);
         editingGameId = null;
         setupView.classList.add("hidden");
         allScoresView.classList.add("hidden");
@@ -1256,21 +1255,6 @@
         if (!autoPushIfEnabled()) showToast("過去の記録を削除しました");
       }
 
-      function discardSession() {
-        const session = activeSession();
-        if (!session) return;
-        if (!pendingDiscard) {
-          pendingDiscard = true;
-          byId("discardSession").textContent = "破棄を確定";
-          showToast("もう一度押すと、この記録を保存せず終了します");
-          return;
-        }
-        store.sessions = store.sessions.filter((item) => item.id !== session.id);
-        persist();
-        showSetup();
-        showToast("記録を破棄しました");
-      }
-
       function openSettlement() {
         const session = activeSession();
         if (!session) return;
@@ -1397,7 +1381,6 @@
       byId("confirmSettlement").addEventListener("click", confirmSettlement);
       byId("openChipInput").addEventListener("click", openSettlement);
       byId("saveSession").addEventListener("click", saveSession);
-      byId("discardSession").addEventListener("click", discardSession);
       byId("finishSession").addEventListener("click", saveAndExit);
       byId("pullSharedData").addEventListener("click", pullSharedStore);
       byId("showAllScores").addEventListener("click", showAllScores);
@@ -1412,7 +1395,9 @@
             saveLocalStore();
           }
         }
-        showSetup();
+        const savedSessionId = sessionStorage.getItem(ACTIVE_SESSION_KEY);
+        if (savedSessionId && store.sessions.some((session) => session.id === savedSessionId)) openSession(savedSessionId);
+        else showSetup();
       }
 
       initialize();
