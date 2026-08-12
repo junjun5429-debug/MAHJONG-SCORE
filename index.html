@@ -777,11 +777,12 @@
           session.players
             .map((name, index) => ({ name, value: totals[index] || 0 }))
             .sort((left, right) => right.value - left.value)
-            .forEach(({ name, value }) => {
+            .forEach(({ name, value }, position) => {
             const item = document.createElement("div");
             item.className = "archive-point";
             const player = document.createElement("span");
-            player.textContent = name;
+            const suffix = position === 0 ? "st" : position === 1 ? "nd" : position === 2 ? "rd" : "th";
+            player.textContent = `${position + 1}${suffix} ${name}`;
             const point = document.createElement("strong");
             point.className = value > 0 ? "positive" : value < 0 ? "negative" : "";
             point.textContent = `${value > 0 ? "+" : ""}${pointFormat.format(value)}`;
