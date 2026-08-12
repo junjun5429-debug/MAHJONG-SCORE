@@ -196,9 +196,12 @@
     .session-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
     .summary-grid { display: grid; grid-template-columns: repeat(var(--players), minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
     .summary-card { padding: 15px; overflow: hidden; }
-    .summary-card.leader { border-color: var(--cp-accent); }
+    .summary-card.leader { border-color: var(--cp-link); }
+    .summary-card.last-place { border-color: var(--cp-danger); }
     .summary-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
     .summary-points { margin: 7px 0 2px; font: 700 24px Consolas, "Courier New", monospace; }
+    .summary-points.positive { color: var(--cp-link); }
+    .summary-points.negative { color: var(--cp-danger); }
     .summary-settlement { display: grid; gap: 4px; margin-top: 10px; color: var(--cp-text-muted); font-size: 12px; }
     .settlement-row { display: flex; justify-content: space-between; gap: 8px; }
     .settlement-row strong { color: var(--cp-text); font-family: Consolas, "Courier New", monospace; }
@@ -252,6 +255,8 @@
     }
     .history-result { min-width: 92px; }
     .history-rank { display: block; margin-bottom: 3px; color: var(--cp-text); font-weight: 700; }
+    .history-rank.first { color: var(--cp-link); }
+    .history-rank.fourth { color: var(--cp-danger); }
     .history-raw-score { display: block; color: var(--cp-text-muted); font: 12px Consolas, monospace; }
     .history-point { display: block; margin-top: 5px; color: var(--cp-text); font: 700 16px Consolas, monospace; }
     .history-resting { color: var(--cp-text-muted); }
@@ -277,6 +282,9 @@
     .archive-point .positive { color: var(--cp-link); }
     .archive-point .negative { color: var(--cp-danger); }
     .all-scores { overflow-x: auto; }
+    .all-scores-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--cp-border); }
+    .all-scores-toolbar label { color: var(--cp-text-muted); font-size: 13px; font-weight: 700; }
+    .all-scores-toolbar select { width: auto; min-width: 140px; }
     .all-scores-table { width: 100%; min-width: 720px; border-collapse: collapse; }
     .all-scores-table th, .all-scores-table td { padding: 11px 13px; border-bottom: 1px solid var(--cp-border); text-align: right; white-space: nowrap; }
     .all-scores-table th:first-child, .all-scores-table td:first-child { position: sticky; left: 0; z-index: 1; background: var(--cp-surface); text-align: left; }
@@ -415,6 +423,10 @@
         <button class="btn" id="closeAllScores" type="button">戻る</button>
       </div>
       <section class="panel all-scores">
+        <div class="all-scores-toolbar">
+          <label for="allScoresPeriod">表示期間</label>
+          <select id="allScoresPeriod"></select>
+        </div>
         <table class="all-scores-table">
           <thead id="allScoresHead"></thead>
           <tbody id="allScoresBody"></tbody>
@@ -837,7 +849,10 @@
 
       function renderAllScores() {
         const players = getKnownPlayers();
-        const sessions = [...store.sessions].sort((left, right) => left.date.localeCompare(right.date) || (left.createdAt || "").localeCompare(right.createdAt || ""));
+        const selectedPeriod = byId("allScoresPeriod").value || "all";
+        const sessions = store.sessions
+          .filter((session) => selectedPeriod === "all" || session.date.startsWith(`${selectedPeriod}-`))
+          .sort((left, right) => left.date.localeCompare(right.date) || (left.createdAt || "").localeCompare(right.createdAt || ""));
         const header = document.createElement("tr");
         ["日付", ...players].forEach((label) => {
           const cell = document.createElement("th");
@@ -877,10 +892,35 @@
           cell.textContent = `${value > 0 ? "+" : ""}${pointFormat.format(value)}`;
           return cell;
         }));
-        byId("allScoresFoot").replaceChildren(totalRow);
+        const averageRow = document.createElement("tr");
+        const averageLabel = document.createElement("th");
+        averageLabel.textContent = "平均";
+        averageRow.append(averageLabel, ...players.map((name) => {
+          const participated = sessions.filter((session) => session.players.includes(name));
+          const value = participated.length ? participated.reduce((total, session) => total + sessionTotals(session)[session.players.indexOf(name)], 0) / participated.length : null;
+          const cell = document.createElement("td");
+          if (Number.isFinite(value)) {
+            cell.className = value > 0 ? "positive" : value < 0 ? "negative" : "";
+            cell.textContent = `${value > 0 ? "+" : ""}${pointFormat.format(value)}`;
+          } else {
+            cell.textContent = "−";
+          }
+          return cell;
+        }));
+        byId("allScoresFoot").replaceChildren(totalRow, averageRow);
       }
 
       function showAllScores() {
+        const period = byId("allScoresPeriod");
+        const previous = period.value || "all";
+        const years = [...new Set(store.sessions.map((session) => session.date.slice(0, 4)))].sort((left, right) => right.localeCompare(left));
+        period.replaceChildren(...[["all", "全対戦"], ...years.map((year) => [year, `${year}年`])].map(([value, label]) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          return option;
+        }));
+        period.value = [...period.options].some((option) => option.value === previous) ? previous : "all";
         setupView.classList.add("hidden");
         scoreView.classList.add("hidden");
         allScoresView.classList.remove("hidden");
@@ -891,14 +931,16 @@
       function renderSummary(session) {
         const totals = sessionTotals(session);
         const leader = totals.length ? Math.max(...totals) : 0;
+        const lastPlace = totals.length ? Math.min(...totals) : 0;
         byId("summaryGrid").replaceChildren(...session.players.map((name, index) => {
           const card = document.createElement("article");
-          card.className = `panel summary-card${session.games.length && totals[index] === leader ? " leader" : ""}`;
+          const positionClass = session.games.length && totals[index] === leader ? " leader" : session.games.length && totals[index] === lastPlace ? " last-place" : "";
+          card.className = `panel summary-card${positionClass}`;
           const playerName = document.createElement("div");
           playerName.className = "summary-name";
           playerName.textContent = name;
           const points = document.createElement("div");
-          points.className = "summary-points";
+          points.className = `summary-points ${totals[index] > 0 ? "positive" : totals[index] < 0 ? "negative" : ""}`;
           points.textContent = `${totals[index] > 0 ? "+" : ""}${pointFormat.format(totals[index])}`;
           const settlement = document.createElement("div");
           settlement.className = "summary-settlement";
@@ -1187,7 +1229,7 @@
               result.textContent = "休み";
             } else {
               const rank = document.createElement("span");
-              rank.className = "history-rank";
+              rank.className = `history-rank${game.ranks[index] === 1 ? " first" : game.ranks[index] === 4 ? " fourth" : ""}`;
               rank.textContent = `${game.ranks[index]}位`;
               const rawScore = document.createElement("span");
               rawScore.className = "history-raw-score";
@@ -1386,6 +1428,7 @@
       byId("finishSession").addEventListener("click", saveAndExit);
       byId("pullSharedData").addEventListener("click", pullSharedStore);
       byId("showAllScores").addEventListener("click", showAllScores);
+      byId("allScoresPeriod").addEventListener("change", renderAllScores);
       byId("closeAllScores").addEventListener("click", showSetup);
 
       async function initialize() {
