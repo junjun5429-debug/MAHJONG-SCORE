@@ -461,6 +461,7 @@
         <div class="session-title"><div class="eyebrow" id="sessionMeta"></div><h2 id="sessionHeading"></h2></div>
         <div class="session-actions">
           <button class="btn hidden" id="openChipInput" type="button">チップ入力</button>
+          <button class="btn" id="exitWithoutSaving" type="button">保存せず終了</button>
           <button class="btn" id="saveSession" type="button">保存</button>
           <button class="btn" id="finishSession" type="button">保存して終了</button>
         </div>
@@ -1425,6 +1426,11 @@
         autoPushIfEnabled();
       }
 
+      function exitWithoutSaving() {
+        showSetup();
+        showToast("保存せず終了しました");
+      }
+
       function saveAndExit() {
         const session = activeSession();
         if (!session) return;
@@ -1483,6 +1489,7 @@
       byId("cancelSettlement").addEventListener("click", cancelSettlement);
       byId("confirmSettlement").addEventListener("click", confirmSettlement);
       byId("openChipInput").addEventListener("click", openSettlement);
+      byId("exitWithoutSaving").addEventListener("click", exitWithoutSaving);
       byId("saveSession").addEventListener("click", saveSession);
       byId("finishSession").addEventListener("click", saveAndExit);
       byId("pullSharedData").addEventListener("click", pullSharedStore);
