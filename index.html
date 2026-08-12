@@ -468,7 +468,7 @@
           <div id="scoreGrid" class="score-grid"></div>
           <div class="checkbar">
             <div id="totalState" class="total-state"><span class="status-dot"></span><span id="totalMessage">点数を入力</span><span class="total-value" id="totalValue"></span></div>
-            <div class="actions"><button class="btn hidden" id="cancelGameEdit" type="button">編集を取消</button><button class="btn primary" id="saveGame" type="button" disabled>ゲームを記録</button></div>
+            <div class="actions"><button class="btn hidden" id="cancelGameEdit" type="button">編集を取消</button><button class="btn" id="clearScores" type="button">スコアをクリア</button><button class="btn primary" id="saveGame" type="button" disabled>ゲームを記録</button></div>
           </div>
         </section>
         <aside class="panel history-panel">
@@ -1185,6 +1185,14 @@
         pushSharedStore(true).then((success) => showToast(success ? "共有データを更新しました" : "共有更新に失敗しました"));
       }
 
+      function clearScores() {
+        const inputs = [...document.querySelectorAll("[data-score-input]")];
+        inputs.forEach((input) => { input.value = ""; });
+        updatePreview();
+        inputs.find((input) => !input.disabled && !input.readOnly)?.focus();
+        showToast("スコアをクリアしました");
+      }
+
       function renderHistory(session) {
         const list = byId("historyList");
         if (!session.games.length) {
@@ -1440,6 +1448,7 @@
       byId("cancelManual").addEventListener("click", () => byId("manualPanel").classList.add("hidden"));
       byId("saveManual").addEventListener("click", saveManualRecord);
       byId("saveGame").addEventListener("click", saveGame);
+      byId("clearScores").addEventListener("click", clearScores);
       byId("cancelGameEdit").addEventListener("click", cancelGameEdit);
       byId("settlementChipRate").addEventListener("input", updateChipPreview);
       byId("cancelSettlement").addEventListener("click", cancelSettlement);
