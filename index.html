@@ -379,12 +379,7 @@
               <label for="pointRate">点数レート</label>
               <select id="pointRate"><option value="50">点5（×50）</option><option value="100">点10（×100）</option></select>
             </div>
-            <div class="field">
-              <label for="chipEnabled">チップ</label>
-              <select id="chipEnabled"><option value="false">なし</option><option value="true">あり</option></select>
-            </div>
           </div>
-          <div id="chipRateField" class="field hidden"><label for="chipRate">チップレート（1枚）</label><input id="chipRate" type="number" min="1" step="50" inputmode="numeric" placeholder="例：500"></div>
           <div id="playerFields" class="player-fields"></div>
           <datalist id="knownPlayers"></datalist>
           <div class="setup-nav">
@@ -446,8 +441,9 @@
       </div>
       <div id="summaryGrid" class="summary-grid"></div>
       <section id="settlementPanel" class="panel settlement-panel hidden">
-        <div class="panel-heading"><h3>最終集計</h3><span class="muted">20枚原点</span></div>
+        <div class="panel-heading"><h3>チップ集計</h3><span class="muted">20枚原点</span></div>
         <div class="settlement-content">
+          <div class="field"><label for="settlementChipRate">チップレート（1枚）</label><input id="settlementChipRate" type="number" min="1" step="50" inputmode="numeric" placeholder="例：500"></div>
           <div id="chipGrid" class="chip-grid"></div>
           <div class="chip-check">
             <span id="chipTotalMessage" class="muted"></span>
@@ -689,9 +685,6 @@
         byId("modeNext").disabled = true;
         byId("sessionDate").value = today();
         byId("pointRate").value = "50";
-        byId("chipEnabled").value = "false";
-        byId("chipRate").value = "";
-        byId("chipRateField").classList.add("hidden");
         byId("manualPanel").classList.add("hidden");
         byId("manualDate").value = today();
         renderArchive();
@@ -757,7 +750,7 @@
         const section = byId("archiveSection");
         const body = byId("archiveBody");
         section.classList.remove("hidden");
-        const sessions = [...store.sessions].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        const sessions = [...store.sessions].sort((left, right) => right.date.localeCompare(left.date) || (right.createdAt || "").localeCompare(left.createdAt || ""));
         if (!sessions.length) {
           const row = document.createElement("tr");
           const cell = document.createElement("td");
@@ -840,7 +833,7 @@
         byId("sessionMeta").textContent = `${formatDate(session.date)} · ${session.mode}人用 · 点${pointRate(session) === 100 ? 10 : 5}${chipMeta}`;
         byId("sessionHeading").textContent = session.players.join("・");
         byId("gameNumber").textContent = `${session.games.length + 1}G`;
-        byId("openChipInput").classList.toggle("hidden", !session.chipEnabled);
+        byId("openChipInput").classList.remove("hidden");
         byId("settlementPanel").classList.add("hidden");
         renderSummary(session);
         renderScoreInputs(session);
@@ -1277,6 +1270,7 @@
         if (!session) return;
         const gameIndex = session.games.findIndex((game) => game.id === gameId);
         if (gameIndex < 0) return;
+        if (!window.confirm(`${gameIndex + 1}Gのゲーム記録を削除しますか？`)) return;
         session.games.splice(gameIndex, 1);
         persist();
         renderSession();
@@ -1302,12 +1296,9 @@
       function openSettlement() {
         const session = activeSession();
         if (!session) return;
-        if (!session.chipEnabled) {
-          showSetup();
-          return;
-        }
         const panel = byId("settlementPanel");
         panel.classList.remove("hidden");
+        byId("settlementChipRate").value = session.chipRate > 0 ? session.chipRate : "";
         byId("chipGrid").replaceChildren(...session.players.map((name, index) => {
           const field = document.createElement("div");
           field.className = "chip-entry";
@@ -1331,6 +1322,7 @@
 
       function updateChipPreview() {
         const session = activeSession();
+        const chipRate = Number(byId("settlementChipRate").value);
         const inputs = [...byId("chipGrid").querySelectorAll("input")];
         const counts = inputs.map((input) => input.value === "" ? null : Number(input.value));
         const complete = counts.length === session.players.length && counts.every(Number.isInteger);
@@ -1339,21 +1331,22 @@
         byId("chipTotalMessage").textContent = complete
           ? `合計 ${total}枚（${total === expected ? "OK" : `差分 ${total - expected}枚`}）`
           : `全員の持ちチップを入力（合計 ${expected}枚）`;
-        byId("confirmSettlement").disabled = !complete || total !== expected;
-        if (complete && total === expected) {
-          session.chipCounts = counts;
-          renderSummary(session);
-        }
+        byId("confirmSettlement").disabled = !complete || total !== expected || !Number.isFinite(chipRate) || chipRate <= 0;
       }
 
       function confirmSettlement() {
         const session = activeSession();
+        const chipRate = Number(byId("settlementChipRate").value);
         const counts = [...byId("chipGrid").querySelectorAll("input")].map((input) => Number(input.value));
-        if (counts.reduce((sum, count) => sum + count, 0) !== session.players.length * 20) return;
+        if (!Number.isFinite(chipRate) || chipRate <= 0 || counts.reduce((sum, count) => sum + count, 0) !== session.players.length * 20) return;
+        session.chipEnabled = true;
+        session.chipRate = chipRate;
         session.chipCounts = counts;
         persist();
+        renderSession();
         renderSummary(session);
         autoPushIfEnabled();
+        showToast("チップを保存しました");
       }
 
       function saveSession() {
@@ -1379,8 +1372,6 @@
       function startSession() {
         const date = byId("sessionDate").value;
         const rate = Number(byId("pointRate").value);
-        const chipEnabled = byId("chipEnabled").value === "true";
-        const chipRate = Number(byId("chipRate").value);
         const players = [...document.querySelectorAll("[data-player-input]")].map((input) => input.value.trim());
         if (!date || players.some((name) => !name)) {
           showToast("日付とプレイヤー名をすべて入力してください");
@@ -1390,11 +1381,7 @@
           showToast("プレイヤー名が重複しています");
           return;
         }
-        if (chipEnabled && (!Number.isFinite(chipRate) || chipRate <= 0)) {
-          showToast("チップレートを入力してください");
-          return;
-        }
-        const session = { id: createId(), mode: setupMode, date, players, pointRate: rate, chipEnabled, chipRate: chipEnabled ? chipRate : 0, games: [], createdAt: new Date().toISOString() };
+        const session = { id: createId(), mode: setupMode, date, players, pointRate: rate, chipEnabled: false, chipRate: 0, games: [], createdAt: new Date().toISOString() };
         store.sessions.push(session);
         persist();
         openSession(session.id);
@@ -1421,7 +1408,7 @@
       byId("saveManual").addEventListener("click", saveManualRecord);
       byId("saveGame").addEventListener("click", saveGame);
       byId("cancelGameEdit").addEventListener("click", cancelGameEdit);
-      byId("chipEnabled").addEventListener("change", () => byId("chipRateField").classList.toggle("hidden", byId("chipEnabled").value !== "true"));
+      byId("settlementChipRate").addEventListener("input", updateChipPreview);
       byId("confirmSettlement").addEventListener("click", confirmSettlement);
       byId("openChipInput").addEventListener("click", openSettlement);
       byId("saveSession").addEventListener("click", saveSession);
