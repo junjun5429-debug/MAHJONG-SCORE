@@ -169,7 +169,7 @@
     }
     .mode-option.selected { border-color: var(--cp-accent); background: var(--cp-accent-soft); }
     .mode-number { display: block; color: var(--cp-accent); font: 700 34px Georgia, serif; }
-    .field { display: grid; gap: 6px; margin-bottom: 14px; }
+    .field { display: grid; min-width: 0; gap: 6px; margin-bottom: 14px; }
     label { color: var(--cp-text-muted); font-size: 13px; font-weight: 650; }
     input, select {
       width: 100%;
@@ -182,6 +182,7 @@
       color: var(--cp-text);
     }
     input:focus, select:focus { border-color: var(--cp-accent); box-shadow: 0 0 0 3px var(--cp-accent-soft); }
+    input[type="date"] { min-width: 0; max-width: 100%; }
     .player-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
     .setup-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 20px; }
     .session-header {
@@ -234,6 +235,7 @@
     .history-item:last-child { border-bottom: 0; }
     .history-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
     .history-tools { display: flex; align-items: center; gap: 8px; }
+    .history-edit { min-height: 30px; padding: 4px 9px; font-size: 12px; }
     .history-delete {
       width: 30px;
       height: 30px;
@@ -268,6 +270,13 @@
     .archive-point strong { font-family: Consolas, "Courier New", monospace; }
     .archive-point .positive { color: var(--cp-link); }
     .archive-point .negative { color: var(--cp-danger); }
+    .all-scores { overflow-x: auto; }
+    .all-scores-table { width: 100%; min-width: 720px; border-collapse: collapse; }
+    .all-scores-table th, .all-scores-table td { padding: 11px 13px; border-bottom: 1px solid var(--cp-border); text-align: right; white-space: nowrap; }
+    .all-scores-table th:first-child, .all-scores-table td:first-child { position: sticky; left: 0; z-index: 1; background: var(--cp-surface); text-align: left; }
+    .all-scores-table thead th, .all-scores-table tfoot th, .all-scores-table tfoot td { color: var(--cp-text); font-weight: 700; }
+    .all-scores-table .positive { color: var(--cp-link); }
+    .all-scores-table .negative { color: var(--cp-danger); }
     .manual-panel { margin-top: 16px; padding: 18px; }
     .manual-panel h3 { margin-bottom: 16px; }
     .manual-head { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -314,6 +323,7 @@
       #archiveSection > .archive { overflow-x: auto; }
       .archive-table { min-width: 560px; }
       .manual-head { grid-template-columns: 1fr; }
+      #sessionDate, #manualDate { width: 100%; min-width: 0; }
     }
   </style>
 </head>
@@ -327,6 +337,7 @@
         </div>
       </div>
       <div class="actions">
+        <button class="btn" id="showAllScores" type="button">全スコア</button>
         <button class="btn" id="pullSharedData" type="button">最新データ取得</button>
       </div>
     </header>
@@ -392,6 +403,20 @@
       </div>
     </section>
 
+    <section id="allScoresView" class="hidden">
+      <div class="session-header">
+        <div class="session-title"><div class="eyebrow">Score archive</div><h2>全員のスコア</h2></div>
+        <button class="btn" id="closeAllScores" type="button">戻る</button>
+      </div>
+      <section class="panel all-scores">
+        <table class="all-scores-table">
+          <thead id="allScoresHead"></thead>
+          <tbody id="allScoresBody"></tbody>
+          <tfoot id="allScoresFoot"></tfoot>
+        </table>
+      </section>
+    </section>
+
     <section id="scoreView" class="hidden">
       <div class="session-header">
         <div class="session-title"><div class="eyebrow" id="sessionMeta"></div><h2 id="sessionHeading"></h2></div>
@@ -426,7 +451,7 @@
           <div id="scoreGrid" class="score-grid"></div>
           <div class="checkbar">
             <div id="totalState" class="total-state"><span class="status-dot"></span><span id="totalMessage">点数を入力</span><span class="total-value" id="totalValue"></span></div>
-            <button class="btn primary" id="saveGame" type="button" disabled>ゲームを記録</button>
+            <div class="actions"><button class="btn hidden" id="cancelGameEdit" type="button">編集を取消</button><button class="btn primary" id="saveGame" type="button" disabled>ゲームを記録</button></div>
           </div>
         </section>
         <aside class="panel history-panel">
@@ -457,10 +482,12 @@
       let toastTimer = null;
       let pendingArchiveDeleteId = null;
       let pendingDiscard = false;
+      let editingGameId = null;
 
       const byId = (id) => document.getElementById(id);
       const setupView = byId("setupView");
       const scoreView = byId("scoreView");
+      const allScoresView = byId("allScoresView");
       const modeStep = byId("modeStep");
       const playersStep = byId("playersStep");
 
@@ -632,11 +659,13 @@
 
       function showSetup() {
         activeSessionId = null;
+        editingGameId = null;
         pendingArchiveDeleteId = null;
         pendingDiscard = false;
         byId("discardSession").textContent = "保存せず終了";
         setupView.classList.remove("hidden");
         scoreView.classList.add("hidden");
+        allScoresView.classList.add("hidden");
         modeStep.classList.add("active");
         playersStep.classList.remove("active");
         setupMode = null;
@@ -774,7 +803,9 @@
 
       function openSession(id) {
         activeSessionId = id;
+        editingGameId = null;
         setupView.classList.add("hidden");
+        allScoresView.classList.add("hidden");
         scoreView.classList.remove("hidden");
         renderSession();
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -783,6 +814,10 @@
       function renderSession() {
         const session = activeSession();
         if (!session) return showSetup();
+        if (!editingGameId) {
+          byId("saveGame").textContent = "ゲームを記録";
+          byId("cancelGameEdit").classList.add("hidden");
+        }
         document.documentElement.style.setProperty("--players", session.mode);
         const chipMeta = session.chipEnabled ? ` · チップ ${numberFormat.format(session.chipRate)}/枚` : " · チップなし";
         byId("sessionMeta").textContent = `${formatDate(session.date)} · ${session.mode}人用 · 点${pointRate(session) === 100 ? 10 : 5}${chipMeta}`;
@@ -793,6 +828,59 @@
         renderSummary(session);
         renderScoreInputs(session);
         renderHistory(session);
+      }
+
+      function renderAllScores() {
+        const players = getKnownPlayers();
+        const sessions = [...store.sessions].sort((left, right) => left.date.localeCompare(right.date) || (left.createdAt || "").localeCompare(right.createdAt || ""));
+        const header = document.createElement("tr");
+        ["日付", ...players].forEach((label) => {
+          const cell = document.createElement("th");
+          cell.textContent = label;
+          header.append(cell);
+        });
+        byId("allScoresHead").replaceChildren(header);
+        byId("allScoresBody").replaceChildren(...sessions.map((session) => {
+          const totals = sessionTotals(session);
+          const values = new Map(session.players.map((name, index) => [name, totals[index]]));
+          const row = document.createElement("tr");
+          const date = document.createElement("td");
+          date.textContent = `${formatDate(session.date)} (${gameCount(session)}G)`;
+          row.append(date, ...players.map((name) => {
+            const cell = document.createElement("td");
+            const value = values.get(name);
+            if (Number.isFinite(value)) {
+              cell.className = value > 0 ? "positive" : value < 0 ? "negative" : "";
+              cell.textContent = `${value > 0 ? "+" : ""}${pointFormat.format(value)}`;
+            } else {
+              cell.textContent = "−";
+            }
+            return cell;
+          }));
+          return row;
+        }));
+        const totalRow = document.createElement("tr");
+        const totalLabel = document.createElement("th");
+        totalLabel.textContent = "総合計";
+        totalRow.append(totalLabel, ...players.map((name) => {
+          const value = sessions.reduce((total, session) => {
+            const index = session.players.indexOf(name);
+            return total + (index >= 0 ? sessionTotals(session)[index] : 0);
+          }, 0);
+          const cell = document.createElement("td");
+          cell.className = value > 0 ? "positive" : value < 0 ? "negative" : "";
+          cell.textContent = `${value > 0 ? "+" : ""}${pointFormat.format(value)}`;
+          return cell;
+        }));
+        byId("allScoresFoot").replaceChildren(totalRow);
+      }
+
+      function showAllScores() {
+        setupView.classList.add("hidden");
+        scoreView.classList.add("hidden");
+        allScoresView.classList.remove("hidden");
+        renderAllScores();
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
 
       function renderSummary(session) {
@@ -838,9 +926,9 @@
           if (knownPlayers[index]) name.value = knownPlayers[index];
           const point = document.createElement("input");
           point.dataset.manualPoint = String(index);
-          point.type = "number";
-          point.step = "0.1";
-          point.inputMode = "decimal";
+          point.type = "text";
+          point.inputMode = "text";
+          point.pattern = "-?[0-9]+([.][0-9]+)?";
           point.placeholder = "最終ポイント";
           const fragment = document.createDocumentFragment();
           fragment.append(name, point);
@@ -906,9 +994,9 @@
           const input = document.createElement("input");
           input.id = `score-${index}`;
           input.dataset.scoreInput = String(index);
-          input.type = "number";
-          input.step = "100";
-          input.inputMode = "numeric";
+          input.type = "text";
+          input.inputMode = "text";
+          input.pattern = "-?[0-9]*";
           input.placeholder = "0";
           input.addEventListener("input", updatePreview);
           const result = document.createElement("div");
@@ -1026,10 +1114,16 @@
         const hakoMinus = byId("hakoMinus").value === "" ? null : Number(byId("hakoMinus").value);
         const adjustments = hakoAdjustments(scores.length);
         const adjustedPoints = points.map((point, index) => point + adjustments[index]);
-        session.games.push({ id: createId(), scores, ranks, points: adjustedPoints, hakoPlus, hakoMinus, createdAt: new Date().toISOString() });
+        const existingIndex = editingGameId ? session.games.findIndex((game) => game.id === editingGameId) : -1;
+        const existing = existingIndex >= 0 ? session.games[existingIndex] : null;
+        const game = { id: existing?.id || createId(), scores, ranks, points: adjustedPoints, hakoPlus, hakoMinus, createdAt: existing?.createdAt || new Date().toISOString() };
+        if (existingIndex >= 0) session.games[existingIndex] = game;
+        else session.games.push(game);
+        const wasEditing = existingIndex >= 0;
+        editingGameId = null;
         persist();
         renderSession();
-        showToast(`${session.games.length}Gを記録しました`);
+        showToast(wasEditing ? "ゲーム記録を更新しました" : `${session.games.length}Gを記録しました`);
       }
 
       function renderHistory(session) {
@@ -1055,6 +1149,11 @@
           check.className = "muted";
           const hakoLabels = [game.hakoPlus !== null && game.hakoPlus !== undefined ? `ハコ+ ${session.players[game.hakoPlus]}` : "", game.hakoMinus !== null && game.hakoMinus !== undefined ? `ハコ- ${session.players[game.hakoMinus]}` : ""].filter(Boolean);
           check.textContent = hakoLabels.length ? hakoLabels.join(" / ") : "100,000 OK";
+          const editButton = document.createElement("button");
+          editButton.type = "button";
+          editButton.className = "btn history-edit";
+          editButton.textContent = "編集";
+          editButton.addEventListener("click", () => editGame(game.id));
           const deleteButton = document.createElement("button");
           deleteButton.type = "button";
           deleteButton.className = "history-delete";
@@ -1062,7 +1161,7 @@
           deleteButton.setAttribute("aria-label", `${gameIndex}Gを削除`);
           deleteButton.textContent = "×";
           deleteButton.addEventListener("click", () => deleteGame(game.id));
-          tools.append(check, deleteButton);
+          tools.append(check, editButton, deleteButton);
           top.append(title, tools);
           const scores = document.createElement("div");
           scores.className = "history-scores";
@@ -1076,6 +1175,31 @@
           item.append(top, scores);
           return item;
         }));
+      }
+
+      function editGame(gameId) {
+        const session = activeSession();
+        const game = session?.games.find((item) => item.id === gameId);
+        if (!session || !game) return;
+        editingGameId = gameId;
+        const restingIndex = game.scores.findIndex((score) => score === null);
+        if (session.mode === 5 && restingIndex >= 0) byId("sitoutPlayer").value = String(restingIndex);
+        updateSitout();
+        document.querySelectorAll("[data-score-input]").forEach((input, index) => {
+          input.value = game.scores[index] === null ? "" : String(game.scores[index]);
+        });
+        byId("hakoPlus").value = game.hakoPlus ?? "";
+        byId("hakoMinus").value = game.hakoMinus ?? "";
+        byId("saveGame").textContent = "ゲームを更新";
+        byId("cancelGameEdit").classList.remove("hidden");
+        updatePreview();
+        byId("scoreGrid").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function cancelGameEdit() {
+        editingGameId = null;
+        renderSession();
+        showToast("編集を取り消しました");
       }
 
       function deleteGame(gameId) {
@@ -1136,10 +1260,9 @@
           label.textContent = name;
           const input = document.createElement("input");
           input.id = `chip-${index}`;
-          input.type = "number";
-          input.min = "0";
-          input.step = "1";
-          input.inputMode = "numeric";
+          input.type = "text";
+          input.inputMode = "text";
+          input.pattern = "-?[0-9]*";
           input.placeholder = "20";
           if (Number.isFinite(session.chipCounts?.[index])) input.value = session.chipCounts[index];
           input.addEventListener("input", updateChipPreview);
@@ -1154,7 +1277,7 @@
         const session = activeSession();
         const inputs = [...byId("chipGrid").querySelectorAll("input")];
         const counts = inputs.map((input) => input.value === "" ? null : Number(input.value));
-        const complete = counts.length === session.players.length && counts.every((count) => Number.isInteger(count) && count >= 0);
+        const complete = counts.length === session.players.length && counts.every(Number.isInteger);
         const total = counts.reduce((sum, count) => sum + (count || 0), 0);
         const expected = session.players.length * 20;
         byId("chipTotalMessage").textContent = complete
@@ -1241,6 +1364,7 @@
       byId("cancelManual").addEventListener("click", () => byId("manualPanel").classList.add("hidden"));
       byId("saveManual").addEventListener("click", saveManualRecord);
       byId("saveGame").addEventListener("click", saveGame);
+      byId("cancelGameEdit").addEventListener("click", cancelGameEdit);
       byId("chipEnabled").addEventListener("change", () => byId("chipRateField").classList.toggle("hidden", byId("chipEnabled").value !== "true"));
       byId("confirmSettlement").addEventListener("click", confirmSettlement);
       byId("openChipInput").addEventListener("click", openSettlement);
@@ -1248,6 +1372,8 @@
       byId("discardSession").addEventListener("click", discardSession);
       byId("finishSession").addEventListener("click", saveAndExit);
       byId("pullSharedData").addEventListener("click", pullSharedStore);
+      byId("showAllScores").addEventListener("click", showAllScores);
+      byId("closeAllScores").addEventListener("click", showSetup);
 
       async function initialize() {
         const hadLocal = Boolean(localStorage.getItem(STORAGE_KEY));
