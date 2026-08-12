@@ -749,21 +749,20 @@
           const label = document.createElement("label");
           label.htmlFor = `player-${index}`;
           label.textContent = `プレイヤー ${index + 1}`;
-          const input = document.createElement("input");
-          input.id = `player-${index}`;
-          input.dataset.playerInput = "true";
-          input.setAttribute("list", `player-options-${index}`);
-          input.autocomplete = "off";
-          input.maxLength = 24;
-          input.addEventListener("input", updatePlayerChoices);
-          const datalist = document.createElement("datalist");
-          datalist.id = `player-options-${index}`;
-          datalist.replaceChildren(...knownPlayers.map((name) => {
+          const select = document.createElement("select");
+          select.id = `player-${index}`;
+          select.dataset.playerInput = "true";
+          const placeholder = document.createElement("option");
+          placeholder.value = "";
+          placeholder.textContent = "プレイヤーを選択";
+          select.append(placeholder, ...knownPlayers.map((name) => {
             const option = document.createElement("option");
             option.value = name;
+            option.textContent = name;
             return option;
           }));
-          field.append(label, input, datalist);
+          select.addEventListener("change", updatePlayerChoices);
+          field.append(label, select);
           fragment.append(field);
         }
         byId("playerFields").replaceChildren(fragment);
@@ -774,14 +773,17 @@
         const knownPlayers = getKnownPlayers();
         inputs.forEach((input, index) => {
           const selectedElsewhere = new Set(inputs.filter((_, otherIndex) => otherIndex !== index).map((other) => other.value.trim()).filter(Boolean));
-          const duplicate = input.value.trim() && selectedElsewhere.has(input.value.trim());
-          input.setCustomValidity(duplicate ? "このプレイヤーは選択済みです" : "");
-          const datalist = byId(`player-options-${index}`);
-          datalist.replaceChildren(...knownPlayers.filter((name) => !selectedElsewhere.has(name)).map((name) => {
+          const selected = input.value;
+          const placeholder = document.createElement("option");
+          placeholder.value = "";
+          placeholder.textContent = "プレイヤーを選択";
+          input.replaceChildren(placeholder, ...knownPlayers.filter((name) => name === selected || !selectedElsewhere.has(name)).map((name) => {
             const option = document.createElement("option");
             option.value = name;
+            option.textContent = name;
             return option;
           }));
+          input.value = selected;
         });
       }
 
