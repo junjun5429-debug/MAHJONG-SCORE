@@ -229,12 +229,15 @@
     .total-state.bad .status-dot { background: var(--cp-danger); }
     .total-value { font-family: Consolas, monospace; }
     .history-panel { overflow: hidden; }
-    .history-list { max-height: 530px; overflow-y: auto; }
+    .history-list { max-height: 530px; overflow: auto; }
     .empty { padding: 32px 18px; color: var(--cp-text-muted); text-align: center; }
-    .history-item { padding: 13px 16px; border-bottom: 1px solid var(--cp-border); }
-    .history-item:last-child { border-bottom: 0; }
-    .history-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
-    .history-tools { display: flex; align-items: center; gap: 8px; }
+    .history-table { width: 100%; min-width: 560px; border-collapse: collapse; table-layout: fixed; }
+    .history-table th, .history-table td { padding: 10px 8px; border-right: 1px solid var(--cp-border); border-bottom: 1px solid var(--cp-border); text-align: center; }
+    .history-table th:last-child, .history-table td:last-child { border-right: 0; }
+    .history-table thead th { position: sticky; top: 0; z-index: 1; background: var(--cp-bg-elevated); color: var(--cp-text); font-size: 12px; }
+    .history-table .game-cell { width: 94px; background: var(--cp-surface-soft); }
+    .history-table .game-label { display: block; margin-bottom: 7px; color: var(--cp-accent); font-family: Consolas, monospace; }
+    .history-tools { display: flex; align-items: center; justify-content: center; gap: 6px; }
     .history-edit { min-height: 30px; padding: 4px 9px; font-size: 12px; }
     .history-delete {
       width: 30px;
@@ -247,8 +250,11 @@
       font-size: 18px;
       line-height: 1;
     }
-    .history-scores { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; color: var(--cp-text-muted); font-size: 12px; }
-    .history-scores strong { color: var(--cp-text); font-family: Consolas, monospace; }
+    .history-result { min-width: 92px; }
+    .history-rank { display: block; margin-bottom: 3px; color: var(--cp-text); font-weight: 700; }
+    .history-raw-score { display: block; color: var(--cp-text-muted); font: 12px Consolas, monospace; }
+    .history-point { display: block; margin-top: 5px; color: var(--cp-text); font: 700 16px Consolas, monospace; }
+    .history-resting { color: var(--cp-text-muted); }
     .history-actions { padding: 12px 16px; border-top: 1px solid var(--cp-border); }
     .settlement-panel { margin-bottom: 18px; overflow: hidden; }
     .settlement-content { padding: 18px; }
@@ -1135,20 +1141,29 @@
           list.replaceChildren(empty);
           return;
         }
-        list.replaceChildren(...[...session.games].reverse().map((game, reverseIndex) => {
-          const gameIndex = session.games.length - reverseIndex;
-          const item = document.createElement("article");
-          item.className = "history-item";
-          const top = document.createElement("div");
-          top.className = "history-top";
+        const table = document.createElement("table");
+        table.className = "history-table";
+        const head = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        const gameHead = document.createElement("th");
+        gameHead.textContent = "ゲーム";
+        headRow.append(gameHead, ...session.players.map((name) => {
+          const playerHead = document.createElement("th");
+          playerHead.textContent = name;
+          return playerHead;
+        }));
+        head.append(headRow);
+        const body = document.createElement("tbody");
+        session.games.forEach((game, gameOffset) => {
+          const gameIndex = gameOffset + 1;
+          const row = document.createElement("tr");
+          const gameCell = document.createElement("th");
+          gameCell.className = "game-cell";
           const title = document.createElement("strong");
+          title.className = "game-label";
           title.textContent = `${gameIndex}G`;
           const tools = document.createElement("div");
           tools.className = "history-tools";
-          const check = document.createElement("span");
-          check.className = "muted";
-          const hakoLabels = [game.hakoPlus !== null && game.hakoPlus !== undefined ? `ハコ+ ${session.players[game.hakoPlus]}` : "", game.hakoMinus !== null && game.hakoMinus !== undefined ? `ハコ- ${session.players[game.hakoMinus]}` : ""].filter(Boolean);
-          check.textContent = hakoLabels.length ? hakoLabels.join(" / ") : "100,000 OK";
           const editButton = document.createElement("button");
           editButton.type = "button";
           editButton.className = "btn history-edit";
@@ -1161,20 +1176,33 @@
           deleteButton.setAttribute("aria-label", `${gameIndex}Gを削除`);
           deleteButton.textContent = "×";
           deleteButton.addEventListener("click", () => deleteGame(game.id));
-          tools.append(check, editButton, deleteButton);
-          top.append(title, tools);
-          const scores = document.createElement("div");
-          scores.className = "history-scores";
+          tools.append(editButton, deleteButton);
+          gameCell.append(title, tools);
+          row.append(gameCell);
           session.players.forEach((name, index) => {
-            const player = document.createElement("span");
-            player.textContent = game.scores[index] === null ? `${name}（休み）` : `${game.ranks[index]}位 ${name}`;
-            const value = document.createElement("strong");
-            value.textContent = game.scores[index] === null ? "−" : `${pointFormat.format(game.points[index])}`;
-            scores.append(player, value);
+            const result = document.createElement("td");
+            result.className = "history-result";
+            if (game.scores[index] === null) {
+              result.classList.add("history-resting");
+              result.textContent = "休み";
+            } else {
+              const rank = document.createElement("span");
+              rank.className = "history-rank";
+              rank.textContent = `${game.ranks[index]}位`;
+              const rawScore = document.createElement("span");
+              rawScore.className = "history-raw-score";
+              rawScore.textContent = numberFormat.format(game.scores[index]);
+              const point = document.createElement("strong");
+              point.className = "history-point";
+              point.textContent = pointFormat.format(game.points[index]);
+              result.append(rank, rawScore, point);
+            }
+            row.append(result);
           });
-          item.append(top, scores);
-          return item;
-        }));
+          body.append(row);
+        });
+        table.append(head, body);
+        list.replaceChildren(table);
       }
 
       function editGame(gameId) {
