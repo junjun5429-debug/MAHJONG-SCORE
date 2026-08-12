@@ -351,7 +351,7 @@
           <h1>麻雀スコア帳</h1>
         </div>
       </div>
-      <div class="actions">
+      <div class="actions" id="topActions">
         <button class="btn" id="showAllScores" type="button">全スコア</button>
         <button class="btn" id="pullSharedData" type="button">最新データ取得</button>
       </div>
@@ -682,6 +682,7 @@
         setupView.classList.remove("hidden");
         scoreView.classList.add("hidden");
         allScoresView.classList.add("hidden");
+        byId("topActions").classList.remove("hidden");
         modeStep.classList.add("active");
         playersStep.classList.remove("active");
         setupMode = null;
@@ -821,6 +822,7 @@
         setupView.classList.add("hidden");
         allScoresView.classList.add("hidden");
         scoreView.classList.remove("hidden");
+        byId("topActions").classList.add("hidden");
         renderSession();
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
@@ -921,6 +923,7 @@
         setupView.classList.add("hidden");
         scoreView.classList.add("hidden");
         allScoresView.classList.remove("hidden");
+        byId("topActions").classList.add("hidden");
         renderAllScores();
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
