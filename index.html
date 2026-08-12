@@ -462,6 +462,7 @@
       const GH_KEY = "mahjong-scorebook-gh-v1";
       const DEFAULT_GH_OWNER = "junjun5429-debug";
       const DEFAULT_GH_REPO = "MAHJONG-SCORE";
+      const DEFAULT_PLAYERS = ["吉田", "横山", "佐々木", "山田", "松岡"];
       const UMA = { 1: 40, 2: 10, 3: -10, 4: -20 };
       const numberFormat = new Intl.NumberFormat("ja-JP");
       const pointFormat = new Intl.NumberFormat("ja-JP", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -657,7 +658,10 @@
       }
 
       function getKnownPlayers() {
-        return [...new Set(store.sessions.flatMap((session) => session.players))].sort((a, b) => a.localeCompare(b, "ja"));
+        const recordedPlayers = [...new Set(store.sessions.flatMap((session) => session.players))]
+          .filter((name) => !DEFAULT_PLAYERS.includes(name))
+          .sort((a, b) => a.localeCompare(b, "ja"));
+        return [...DEFAULT_PLAYERS, ...recordedPlayers];
       }
 
       function activeSession() {
