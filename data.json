@@ -1,9 +1,82 @@
 {
-  "app": "mahjong-scorebook",
-  "version": 1,
-  "exportedAt": "2026-08-12T00:00:00.000Z",
-  "data": {
-    "sessions": [],
-    "updatedAt": "2026-08-12T00:00:00.000Z"
-  }
+ "app": "mahjong-scorebook",
+ "version": 1,
+ "exportedAt": "2026-08-12T08:54:14.098Z",
+ "data": {
+  "sessions": [
+   {
+    "id": "1786524570953-e06152eaa81d5",
+    "mode": 4,
+    "date": "2026-08-12",
+    "players": [
+     "吉田",
+     "佐々木",
+     "松岡",
+     "横山"
+    ],
+    "pointRate": 100,
+    "chipEnabled": true,
+    "chipRate": 250,
+    "games": [
+     {
+      "id": "1786524598411-bfe710075d52b",
+      "scores": [
+       41800,
+       61100,
+       -19900,
+       17000
+      ],
+      "ranks": [
+       2,
+       1,
+       4,
+       3
+      ],
+      "points": [
+       21.8,
+       71.1,
+       -79.9,
+       -13
+      ],
+      "hakoPlus": 3,
+      "hakoMinus": 2,
+      "createdAt": "2026-08-12T08:49:58.411Z"
+     },
+     {
+      "id": "1786524613457-e9e186c2bfd8b",
+      "scores": [
+       22800,
+       24300,
+       19800,
+       33100
+      ],
+      "ranks": [
+       3,
+       2,
+       4,
+       1
+      ],
+      "points": [
+       -17.2,
+       4.3,
+       -30.2,
+       43.1
+      ],
+      "hakoPlus": null,
+      "hakoMinus": null,
+      "createdAt": "2026-08-12T08:50:13.457Z"
+     }
+    ],
+    "createdAt": "2026-08-12T08:49:30.953Z",
+    "chipCounts": [
+     30,
+     25,
+     5,
+     20
+    ],
+    "settledAt": "2026-08-12T08:50:59.051Z"
+   }
+  ],
+  "updatedAt": "2026-08-12T08:50:59.051Z"
+ }
 }
