@@ -447,7 +447,10 @@
           <div id="chipGrid" class="chip-grid"></div>
           <div class="chip-check">
             <span id="chipTotalMessage" class="muted"></span>
-            <button class="btn primary" id="confirmSettlement" type="button" disabled>チップを保存</button>
+            <div class="actions">
+              <button class="btn" id="cancelSettlement" type="button">破棄して閉じる</button>
+              <button class="btn primary" id="confirmSettlement" type="button" disabled>チップを保存</button>
+            </div>
           </div>
         </div>
       </section>
@@ -1334,6 +1337,13 @@
         byId("confirmSettlement").disabled = !complete || total !== expected || !Number.isFinite(chipRate) || chipRate <= 0;
       }
 
+      function cancelSettlement() {
+        byId("settlementChipRate").value = "";
+        byId("chipGrid").replaceChildren();
+        byId("settlementPanel").classList.add("hidden");
+        showToast("チップ入力を破棄しました");
+      }
+
       function confirmSettlement() {
         const session = activeSession();
         const chipRate = Number(byId("settlementChipRate").value);
@@ -1409,6 +1419,7 @@
       byId("saveGame").addEventListener("click", saveGame);
       byId("cancelGameEdit").addEventListener("click", cancelGameEdit);
       byId("settlementChipRate").addEventListener("input", updateChipPreview);
+      byId("cancelSettlement").addEventListener("click", cancelSettlement);
       byId("confirmSettlement").addEventListener("click", confirmSettlement);
       byId("openChipInput").addEventListener("click", openSettlement);
       byId("saveSession").addEventListener("click", saveSession);
