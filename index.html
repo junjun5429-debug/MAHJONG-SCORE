@@ -576,9 +576,7 @@
           showToast("共有データが見つかりませんでした");
           return;
         }
-        const localTime = Date.parse(store.updatedAt || 0);
-        const sharedTime = Date.parse(shared.updatedAt || 0);
-        if (store.sessions.length && sharedTime <= localTime) {
+        if (JSON.stringify(store.sessions) === JSON.stringify(shared.sessions)) {
           showToast("すでに最新です");
           return;
         }
@@ -1334,9 +1332,9 @@
 
       async function initialize() {
         const hadLocal = Boolean(localStorage.getItem(STORAGE_KEY));
-        if (!hadLocal) {
+        if (!hadLocal || store.sessions.length === 0) {
           const shared = await getSharedData();
-          if (shared) {
+          if (shared && shared.sessions.length > 0) {
             store = shared;
             saveLocalStore();
           }
