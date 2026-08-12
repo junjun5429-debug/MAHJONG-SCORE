@@ -223,6 +223,7 @@
     .score-entry.resting { opacity: .48; }
     .score-entry label { display: block; overflow: hidden; margin-bottom: 8px; color: var(--cp-text); text-overflow: ellipsis; white-space: nowrap; }
     .score-entry input { font-family: Consolas, "Courier New", monospace; font-size: 18px; font-weight: 700; text-align: right; }
+    .score-entry input[readonly], .chip-entry input[readonly] { background: var(--cp-bg-elevated); color: var(--cp-text-muted); cursor: default; }
     .result-line { display: flex; justify-content: space-between; gap: 8px; min-height: 42px; padding-top: 10px; color: var(--cp-text-muted); font-size: 12px; }
     .result-line strong { display: block; margin-top: 2px; color: var(--cp-text); font: 700 16px Consolas, monospace; }
     .checkbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-top: 1px solid var(--cp-border); background: var(--cp-bg-elevated); }
@@ -1107,7 +1108,21 @@
         });
       }
 
+      function updateFinalScoreInput() {
+        const inputs = [...document.querySelectorAll("[data-score-input]")];
+        inputs.forEach((input) => { input.readOnly = false; });
+        const activeInputs = inputs.filter((input) => !input.disabled);
+        const finalInput = activeInputs.at(-1);
+        if (!finalInput) return;
+        finalInput.readOnly = true;
+        const precedingScores = activeInputs.slice(0, -1).map((input) => input.value.trim() === "" ? null : Number(input.value));
+        finalInput.value = precedingScores.every(Number.isFinite)
+          ? String(100000 - precedingScores.reduce((sum, score) => sum + score, 0))
+          : "";
+      }
+
       function updatePreview() {
+        updateFinalScoreInput();
         const scores = currentScores();
         const activeScores = scores.filter((score) => score !== null);
         const expectedCount = 4;
@@ -1133,7 +1148,7 @@
         state.classList.remove("ok", "bad");
         byId("totalValue").textContent = activeScores.length ? numberFormat.format(total) : "";
         if (!complete) {
-          byId("totalMessage").textContent = "4名分を入力";
+          byId("totalMessage").textContent = "3名分を入力すると最後の点数を自動計算";
         } else if (total === 100000) {
           state.classList.add("ok");
           byId("totalMessage").textContent = "点数チェック OK";
@@ -1327,13 +1342,21 @@
         const session = activeSession();
         const chipRate = Number(byId("settlementChipRate").value);
         const inputs = [...byId("chipGrid").querySelectorAll("input")];
+        const expected = session.players.length * 20;
+        const finalInput = inputs.at(-1);
+        if (finalInput) {
+          finalInput.readOnly = true;
+          const precedingCounts = inputs.slice(0, -1).map((input) => input.value.trim() === "" ? null : Number(input.value));
+          finalInput.value = precedingCounts.every(Number.isInteger)
+            ? String(expected - precedingCounts.reduce((sum, count) => sum + count, 0))
+            : "";
+        }
         const counts = inputs.map((input) => input.value === "" ? null : Number(input.value));
         const complete = counts.length === session.players.length && counts.every(Number.isInteger);
         const total = counts.reduce((sum, count) => sum + (count || 0), 0);
-        const expected = session.players.length * 20;
         byId("chipTotalMessage").textContent = complete
           ? `合計 ${total}枚（${total === expected ? "OK" : `差分 ${total - expected}枚`}）`
-          : `全員の持ちチップを入力（合計 ${expected}枚）`;
+          : `最後の1名は自動計算（合計 ${expected}枚）`;
         byId("confirmSettlement").disabled = !complete || total !== expected || !Number.isFinite(chipRate) || chipRate <= 0;
       }
 
