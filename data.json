@@ -1,7 +1,7 @@
 {
  "app": "mahjong-scorebook",
  "version": 1,
- "exportedAt": "2026-08-12T08:54:53.255Z",
+ "exportedAt": "2026-08-12T08:55:32.623Z",
  "data": {
   "sessions": [
    {
@@ -74,9 +74,9 @@
      5,
      20
     ],
-    "settledAt": "2026-08-12T08:50:59.051Z"
+    "settledAt": "2026-08-12T08:55:31.425Z"
    }
   ],
-  "updatedAt": "2026-08-12T08:50:59.051Z"
+  "updatedAt": "2026-08-12T08:55:31.425Z"
  }
 }
