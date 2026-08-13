@@ -292,11 +292,13 @@
     .archive-table button { color: var(--cp-link); }
     .archive-actions { display: flex; gap: 6px; }
     .archive-table .archive-delete { color: var(--cp-danger); }
-    .archive-points { display: grid; gap: 3px; min-width: 150px; }
-    .archive-point { display: flex; justify-content: space-between; gap: 12px; }
-    .archive-point strong { font-family: Consolas, "Courier New", monospace; }
-    .archive-point .positive { color: var(--cp-link); }
-    .archive-point .negative { color: var(--cp-danger); }
+    .archive-date { display: grid; gap: 4px; white-space: nowrap; }
+    .archive-games { color: var(--cp-text-muted); font-size: 12px; }
+    .archive-members, .archive-points { display: grid; gap: 3px; }
+    .archive-member { overflow: hidden; line-height: 21px; text-overflow: ellipsis; white-space: nowrap; }
+    .archive-point { font-family: Consolas, "Courier New", monospace; font-weight: 700; line-height: 21px; white-space: nowrap; }
+    .archive-point.positive { color: var(--cp-link); }
+    .archive-point.negative { color: var(--cp-danger); }
     .all-scores { overflow-x: auto; }
     .all-scores-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--cp-border); }
     .all-scores-toolbar label { color: var(--cp-text-muted); font-size: 13px; font-weight: 700; }
@@ -371,15 +373,12 @@
       .archive-table, .archive-table tbody { display: block; width: 100%; }
       .archive-table { min-width: 0; }
       .archive-table thead { display: none; }
-      .archive-table tr { display: grid; grid-template-columns: 86px minmax(0, 1fr) 42px; align-items: center; border-bottom: 1px solid var(--cp-border); }
+      .archive-table tr { display: grid; grid-template-columns: 86px minmax(0, 1fr) 78px; align-items: start; border-bottom: 1px solid var(--cp-border); }
       .archive-table tr:last-child { border-bottom: 0; }
       .archive-table td { min-width: 0; padding: 14px 8px; border-bottom: 0; }
-      .archive-table td:first-child { padding-left: 12px; font-size: 13px; white-space: nowrap; }
-      .archive-table td:nth-child(3) { padding-right: 8px; text-align: right; white-space: nowrap; }
+      .archive-table td:first-child { padding-left: 12px; font-size: 13px; }
+      .archive-table td:nth-child(3) { padding-right: 12px; text-align: right; }
       .archive-table td:last-child { grid-column: 1 / -1; padding: 0 12px 12px; }
-      .archive-points { min-width: 0; }
-      .archive-point { gap: 8px; }
-      .archive-point span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .archive-actions { justify-content: flex-end; }
       .manual-head { grid-template-columns: 1fr; }
       .user-add { grid-template-columns: 1fr; }
@@ -442,7 +441,7 @@
           <div class="panel-heading"><h3>過去の記録</h3><button class="btn" id="showManualForm" type="button">記録を追加</button></div>
           <div class="archive" style="margin-top:0">
             <table class="archive-table">
-              <thead><tr><th>日付</th><th>メンバー・最終ポイント</th><th>総ゲーム数</th><th></th></tr></thead>
+              <thead><tr><th>日付・総ゲーム数</th><th>メンバー</th><th>最終ポイント</th><th></th></tr></thead>
               <tbody id="archiveBody"></tbody>
             </table>
           </div>
@@ -893,7 +892,18 @@
         body.replaceChildren(...sessions.map((session) => {
           const row = document.createElement("tr");
           const dateCell = document.createElement("td");
-          dateCell.textContent = formatDate(session.date);
+          const dateDetails = document.createElement("div");
+          dateDetails.className = "archive-date";
+          const date = document.createElement("span");
+          date.textContent = formatDate(session.date);
+          const games = document.createElement("span");
+          games.className = "archive-games";
+          games.textContent = `${gameCount(session)}G`;
+          dateDetails.append(date, games);
+          dateCell.append(dateDetails);
+          const membersCell = document.createElement("td");
+          const memberList = document.createElement("div");
+          memberList.className = "archive-members";
           const pointsCell = document.createElement("td");
           const pointList = document.createElement("div");
           pointList.className = "archive-points";
@@ -902,21 +912,19 @@
             .map((name, index) => ({ name, value: totals[index] || 0 }))
             .sort((left, right) => right.value - left.value)
             .forEach(({ name, value }, position) => {
-            const item = document.createElement("div");
-            item.className = "archive-point";
-            const player = document.createElement("span");
+            const member = document.createElement("span");
+            member.className = "archive-member";
             const suffix = position === 0 ? "st" : position === 1 ? "nd" : position === 2 ? "rd" : "th";
-            player.textContent = `${position + 1}${suffix} ${name}`;
-            const point = document.createElement("strong");
-            point.className = value > 0 ? "positive" : value < 0 ? "negative" : "";
+            member.textContent = `${position + 1}${suffix} ${name}`;
+            const point = document.createElement("span");
+            point.className = `archive-point${value > 0 ? " positive" : value < 0 ? " negative" : ""}`;
             point.textContent = `${value > 0 ? "+" : ""}${pointFormat.format(value)}`;
-            item.append(player, point);
-            pointList.append(item);
+            memberList.append(member);
+            pointList.append(point);
             });
+          membersCell.append(memberList);
           pointsCell.append(pointList);
-          const gamesCell = document.createElement("td");
-          gamesCell.textContent = `${gameCount(session)}G`;
-          row.append(dateCell, pointsCell, gamesCell);
+          row.append(dateCell, membersCell, pointsCell);
           const actionCell = document.createElement("td");
           const actions = document.createElement("div");
           actions.className = "archive-actions";
