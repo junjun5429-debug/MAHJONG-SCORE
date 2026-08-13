@@ -308,6 +308,14 @@
     .manual-panel h3 { margin-bottom: 16px; }
     .manual-head { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
     .manual-players { display: grid; grid-template-columns: 1fr 140px; gap: 10px; }
+    .user-management { max-width: 640px; overflow: hidden; }
+    .user-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; padding: 18px; border-bottom: 1px solid var(--cp-border); }
+    .user-add .field { margin: 0; }
+    .user-list { display: grid; }
+    .user-row { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 11px 18px; border-bottom: 1px solid var(--cp-border); }
+    .user-row:last-child { border-bottom: 0; }
+    .user-name { font-weight: 700; }
+    .user-count { color: var(--cp-text-muted); font-size: 12px; }
     .toast {
       position: fixed;
       right: 20px;
@@ -336,11 +344,12 @@
     @media (max-width: 560px) {
       .shell { padding: 16px 12px; }
       .topbar, .session-header { align-items: flex-start; }
+      .topbar { flex-wrap: wrap; gap: 10px; }
       .brand { flex: 0 0 auto; gap: 8px; }
       .brand-mark { width: 38px; height: 46px; font-size: 22px; }
       .brand-copy h1 { margin-top: 7px; font-size: 18px; white-space: nowrap; }
-      #topActions { flex: 0 1 128px; justify-content: flex-end; }
-      #topActions .btn { min-height: 36px; padding: 7px 10px; font-size: 13px; }
+      #topActions { display: grid; flex: 1 0 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+      #topActions .btn { min-height: 36px; padding: 7px 4px; font-size: 12px; }
       .session-actions { max-width: 180px; }
       .topbar { margin-bottom: 16px; }
       .brand-copy .muted { display: none; }
@@ -368,6 +377,8 @@
       .archive-point span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .archive-actions { justify-content: flex-end; }
       .manual-head { grid-template-columns: 1fr; }
+      .user-add { grid-template-columns: 1fr; }
+      .user-add .btn { width: 100%; }
       #sessionDate, #manualDate { width: -webkit-fill-available; min-width: 0; }
     }
   </style>
@@ -382,6 +393,7 @@
         </div>
       </div>
       <div class="actions" id="topActions">
+        <button class="btn" id="showUserManagement" type="button">ユーザー管理</button>
         <button class="btn" id="showAllScores" type="button">全スコア</button>
         <button class="btn" id="pullSharedData" type="button">最新データ取得</button>
       </div>
@@ -441,6 +453,24 @@
           <div class="setup-nav"><button class="btn" id="cancelManual" type="button">キャンセル</button><button class="btn primary" id="saveManual" type="button">追加</button></div>
         </section>
       </div>
+    </section>
+
+    <section id="userManagementView" class="hidden">
+      <div class="session-header">
+        <div class="session-title"><div class="eyebrow">Players</div><h2>ユーザー管理</h2></div>
+        <button class="btn" id="closeUserManagement" type="button">戻る</button>
+      </div>
+      <section class="panel user-management">
+        <div class="user-add">
+          <div class="field">
+            <label for="newUserName">新しいユーザー名</label>
+            <input id="newUserName" type="text" maxlength="30" autocomplete="off" placeholder="名前を入力">
+          </div>
+          <button class="btn primary" id="addUser" type="button">追加</button>
+        </div>
+        <div class="panel-heading"><h3>既存ユーザー</h3><span class="muted" id="userCount"></span></div>
+        <div id="userList" class="user-list"></div>
+      </section>
     </section>
 
     <section id="allScoresView" class="hidden">
@@ -536,15 +566,18 @@
       const setupView = byId("setupView");
       const scoreView = byId("scoreView");
       const allScoresView = byId("allScoresView");
+      const userManagementView = byId("userManagementView");
       const modeStep = byId("modeStep");
       const playersStep = byId("playersStep");
 
       function loadStore() {
         try {
           const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
-          return parsed && Array.isArray(parsed.sessions) ? parsed : { sessions: [], updatedAt: null };
+          return parsed && Array.isArray(parsed.sessions)
+            ? { ...parsed, players: Array.isArray(parsed.players) ? parsed.players : [] }
+            : { sessions: [], players: [], updatedAt: null };
         } catch {
-          return { sessions: [], updatedAt: null };
+          return { sessions: [], players: [], updatedAt: null };
         }
       }
 
@@ -559,7 +592,9 @@
 
       function normalizeSharedStore(value) {
         const data = value?.data || value;
-        return data && Array.isArray(data.sessions) ? { sessions: data.sessions, updatedAt: data.updatedAt || null } : null;
+        return data && Array.isArray(data.sessions)
+          ? { sessions: data.sessions, players: Array.isArray(data.players) ? data.players : [], updatedAt: data.updatedAt || null }
+          : null;
       }
 
       function supabaseHeaders() {
@@ -652,10 +687,10 @@
       }
 
       function getKnownPlayers() {
-        const recordedPlayers = [...new Set(store.sessions.flatMap((session) => session.players))]
+        const additionalPlayers = [...new Set([...(store.players || []), ...store.sessions.flatMap((session) => session.players)])]
           .filter((name) => !DEFAULT_PLAYERS.includes(name))
           .sort((a, b) => a.localeCompare(b, "ja"));
-        return [...DEFAULT_PLAYERS, ...recordedPlayers];
+        return [...DEFAULT_PLAYERS, ...additionalPlayers];
       }
 
       function activeSession() {
@@ -713,6 +748,7 @@
         setupView.classList.remove("hidden");
         scoreView.classList.add("hidden");
         allScoresView.classList.add("hidden");
+        userManagementView.classList.add("hidden");
         byId("topActions").classList.remove("hidden");
         modeStep.classList.add("active");
         playersStep.classList.remove("active");
@@ -725,6 +761,58 @@
         byId("manualDate").value = today();
         renderArchive();
         renderKnownPlayers();
+      }
+
+      function showUserManagement() {
+        setupView.classList.add("hidden");
+        scoreView.classList.add("hidden");
+        allScoresView.classList.add("hidden");
+        userManagementView.classList.remove("hidden");
+        byId("topActions").classList.add("hidden");
+        byId("newUserName").value = "";
+        renderUserList();
+        byId("newUserName").focus();
+      }
+
+      function renderUserList() {
+        const players = getKnownPlayers();
+        byId("userCount").textContent = `${players.length}名`;
+        byId("userList").replaceChildren(...players.map((name) => {
+          const row = document.createElement("div");
+          row.className = "user-row";
+          const playerName = document.createElement("span");
+          playerName.className = "user-name";
+          playerName.textContent = name;
+          const sessionCount = store.sessions.filter((session) => session.players.includes(name)).length;
+          const count = document.createElement("span");
+          count.className = "user-count";
+          count.textContent = sessionCount ? `${sessionCount}回参加` : "未参加";
+          row.append(playerName, count);
+          return row;
+        }));
+      }
+
+      function addUser() {
+        const input = byId("newUserName");
+        const name = input.value.trim();
+        if (!name) {
+          showToast("ユーザー名を入力してください");
+          input.focus();
+          return;
+        }
+        if (getKnownPlayers().includes(name)) {
+          showToast("同じ名前のユーザーが登録されています");
+          input.focus();
+          return;
+        }
+        store.players = [...(store.players || []), name];
+        persist();
+        renderKnownPlayers();
+        renderUserList();
+        input.value = "";
+        input.focus();
+        showToast(`${name}さんを追加しました。共有を更新しています`);
+        pushSharedStore(true).then((success) => showToast(success ? "ユーザーを共有しました" : "共有更新に失敗しました"));
       }
 
       function renderKnownPlayers() {
@@ -853,6 +941,7 @@
         editingGameId = null;
         setupView.classList.add("hidden");
         allScoresView.classList.add("hidden");
+        userManagementView.classList.add("hidden");
         scoreView.classList.remove("hidden");
         byId("topActions").classList.add("hidden");
         renderSession();
@@ -1498,6 +1587,12 @@
       byId("saveSession").addEventListener("click", saveSession);
       byId("finishSession").addEventListener("click", saveAndExit);
       byId("pullSharedData").addEventListener("click", pullSharedStore);
+      byId("showUserManagement").addEventListener("click", showUserManagement);
+      byId("closeUserManagement").addEventListener("click", showSetup);
+      byId("addUser").addEventListener("click", addUser);
+      byId("newUserName").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") addUser();
+      });
       byId("showAllScores").addEventListener("click", showAllScores);
       byId("allScoresPeriod").addEventListener("change", renderAllScores);
       byId("closeAllScores").addEventListener("click", showSetup);
