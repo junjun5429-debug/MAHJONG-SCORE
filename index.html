@@ -1104,7 +1104,6 @@
           name.dataset.manualName = String(index);
           name.setAttribute("list", "knownPlayers");
           name.placeholder = `プレイヤー ${index + 1}`;
-          if (knownPlayers[index]) name.value = knownPlayers[index];
           const point = document.createElement("input");
           point.dataset.manualPoint = String(index);
           point.type = "text";
