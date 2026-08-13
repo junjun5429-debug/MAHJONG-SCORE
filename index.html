@@ -1100,20 +1100,59 @@
         const count = Number(byId("manualMode").value);
         const knownPlayers = getKnownPlayers();
         byId("manualPlayers").replaceChildren(...Array.from({ length: count }, (_, index) => {
-          const name = document.createElement("input");
+          const name = document.createElement("select");
           name.dataset.manualName = String(index);
-          name.setAttribute("list", "knownPlayers");
-          name.placeholder = `プレイヤー ${index + 1}`;
+          const placeholder = document.createElement("option");
+          placeholder.value = "";
+          placeholder.textContent = `プレイヤー ${index + 1}`;
+          name.append(placeholder, ...knownPlayers.map((playerName) => {
+            const option = document.createElement("option");
+            option.value = playerName;
+            option.textContent = playerName;
+            return option;
+          }));
+          name.addEventListener("change", updateManualPlayerChoices);
           const point = document.createElement("input");
           point.dataset.manualPoint = String(index);
           point.type = "text";
           point.inputMode = "text";
           point.pattern = "-?[0-9]+([.][0-9]+)?";
-          point.placeholder = "最終ポイント";
+          point.placeholder = index === count - 1 ? "自動計算" : "最終ポイント";
+          point.readOnly = index === count - 1;
+          point.addEventListener("input", updateManualFinalPoint);
           const fragment = document.createDocumentFragment();
           fragment.append(name, point);
           return fragment;
         }));
+      }
+
+      function updateManualPlayerChoices() {
+        const selects = [...document.querySelectorAll("[data-manual-name]")];
+        const knownPlayers = getKnownPlayers();
+        selects.forEach((select, index) => {
+          const selected = select.value;
+          const selectedElsewhere = new Set(selects.filter((_, otherIndex) => otherIndex !== index).map((other) => other.value).filter(Boolean));
+          const placeholder = document.createElement("option");
+          placeholder.value = "";
+          placeholder.textContent = `プレイヤー ${index + 1}`;
+          select.replaceChildren(placeholder, ...knownPlayers.filter((name) => name === selected || !selectedElsewhere.has(name)).map((name) => {
+            const option = document.createElement("option");
+            option.value = name;
+            option.textContent = name;
+            return option;
+          }));
+          select.value = selected;
+        });
+      }
+
+      function updateManualFinalPoint() {
+        const inputs = [...document.querySelectorAll("[data-manual-point]")];
+        const finalInput = inputs.at(-1);
+        if (!finalInput) return;
+        const preceding = inputs.slice(0, -1).map((input) => input.value.trim() === "" ? null : Number(input.value));
+        finalInput.value = preceding.every(Number.isFinite)
+          ? String(Number((-preceding.reduce((sum, value) => sum + value, 0)).toFixed(10)))
+          : "";
       }
 
       function showManualForm() {
@@ -1138,6 +1177,10 @@
         }
         if (new Set(players).size !== mode) {
           showToast("プレイヤー名が重複しています");
+          return;
+        }
+        if (Math.abs(totals.reduce((sum, value) => sum + value, 0)) > 1e-9) {
+          showToast("最終ポイントの合計が0になるように入力してください");
           return;
         }
         store.sessions.push({ id: createId(), mode, date, players, manualTotals: totals, totalGames, pointRate: 50, chipEnabled: false, chipRate: 0, games: [], createdAt: new Date().toISOString() });
