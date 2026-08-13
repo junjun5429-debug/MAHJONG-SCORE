@@ -189,7 +189,12 @@
       color: var(--cp-text);
     }
     input:focus, select:focus { border-color: var(--cp-accent); box-shadow: 0 0 0 3px var(--cp-accent-soft); }
-    input[type="date"] { min-width: 0; max-width: 100%; }
+    input[type="date"] {
+      display: block;
+      width: -webkit-fill-available;
+      min-width: 0;
+      max-width: 100%;
+    }
     .player-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
     .setup-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 20px; }
     .session-header {
@@ -363,7 +368,7 @@
       .archive-point span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .archive-actions { justify-content: flex-end; }
       .manual-head { grid-template-columns: 1fr; }
-      #sessionDate, #manualDate { width: 100%; min-width: 0; }
+      #sessionDate, #manualDate { width: -webkit-fill-available; min-width: 0; }
     }
   </style>
 </head>
