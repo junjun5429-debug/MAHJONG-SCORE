@@ -1627,6 +1627,9 @@
       byId("closeAllScores").addEventListener("click", showSetup);
 
       async function initialize() {
+        if ("serviceWorker" in navigator && location.protocol !== "file:") {
+          navigator.serviceWorker.register("./sw.js").catch((error) => console.error(error));
+        }
         const hadLocal = Boolean(localStorage.getItem(STORAGE_KEY));
         if (!hadLocal || store.sessions.length === 0) {
           const shared = await getSharedData();
