@@ -230,6 +230,9 @@
     .sitout-row label { color: var(--cp-text); }
     .hako-row { display: grid; grid-template-columns: repeat(2, minmax(0, 230px)); gap: 10px; padding: 14px 18px 0; }
     .hako-row .field { margin-bottom: 0; }
+    .hako-checks { display: flex; min-height: 42px; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .hako-check { display: inline-flex; gap: 6px; align-items: center; padding: 8px 10px; border: 1px solid var(--cp-border); border-radius: .375rem; background: var(--cp-surface-soft); cursor: pointer; }
+    .hako-check input { width: auto; margin: 0; }
     .score-grid { display: grid; grid-template-columns: repeat(var(--players), minmax(0, 1fr)); gap: 10px; padding: 18px; }
     .score-entry { min-width: 0; padding: 14px 12px; border: 1px solid var(--cp-border); border-radius: .625rem; background: var(--cp-surface-soft); }
     .score-entry.resting { opacity: .48; }
@@ -523,8 +526,8 @@
             <label for="sitoutPlayer">休み</label><select id="sitoutPlayer"></select>
           </div>
           <div class="hako-row">
-            <div class="field"><label for="hakoPlus">ハコ+（+10.0）</label><select id="hakoPlus"></select></div>
-            <div class="field"><label for="hakoMinus">ハコ-（-10.0）</label><select id="hakoMinus"></select></div>
+            <div class="field"><label for="hakoPlus">ハコ+（1人につき+10.0）</label><select id="hakoPlus"></select></div>
+            <div class="field"><label>ハコ-（1人につき-10.0）</label><div id="hakoMinus" class="hako-checks"></div></div>
           </div>
           <div id="scoreGrid" class="score-grid"></div>
           <div class="checkbar">
@@ -1150,7 +1153,6 @@
         }));
         if (session.mode === 5) sitoutSelect.value = String(session.games.length % 5);
         byId("hakoPlus").onchange = updateHakoOptions;
-        byId("hakoMinus").onchange = updateHakoOptions;
 
         const entries = session.players.map((name, index) => {
           const entry = document.createElement("div");
@@ -1184,32 +1186,47 @@
         const plus = byId("hakoPlus");
         const minus = byId("hakoMinus");
         const previousPlus = plus.value;
-        const previousMinus = minus.value;
-        const buildOptions = (excludedValue) => {
+        const previousMinus = new Set([...minus.querySelectorAll("input:checked")].map((input) => input.value));
+        const buildOptions = () => {
           const none = document.createElement("option");
           none.value = "";
           none.textContent = "なし";
           return [none, ...session.players.flatMap((name, index) => {
-            if (index === restingIndex || String(index) === excludedValue) return [];
+            if (index === restingIndex || previousMinus.has(String(index))) return [];
             const option = document.createElement("option");
             option.value = index;
             option.textContent = name;
             return [option];
           })];
         };
-        plus.replaceChildren(...buildOptions(previousMinus));
+        plus.replaceChildren(...buildOptions());
         plus.value = [...plus.options].some((option) => option.value === previousPlus) ? previousPlus : "";
-        minus.replaceChildren(...buildOptions(plus.value));
-        minus.value = [...minus.options].some((option) => option.value === previousMinus) ? previousMinus : "";
+        const checks = session.players.flatMap((name, index) => {
+          if (index === restingIndex || String(index) === plus.value) return [];
+          const label = document.createElement("label");
+          label.className = "hako-check";
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.value = index;
+          input.checked = previousMinus.has(String(index));
+          input.addEventListener("change", updateHakoOptions);
+          label.append(input, document.createTextNode(name));
+          return [label];
+        });
+        minus.replaceChildren(...checks);
         updatePreview();
+      }
+
+      function selectedHakoMinus() {
+        return [...byId("hakoMinus").querySelectorAll("input:checked")].map((input) => Number(input.value));
       }
 
       function hakoAdjustments(playerCount) {
         const adjustments = Array(playerCount).fill(0);
         const plus = byId("hakoPlus").value;
-        const minus = byId("hakoMinus").value;
-        if (plus !== "") adjustments[Number(plus)] += 10;
-        if (minus !== "") adjustments[Number(minus)] -= 10;
+        const minus = selectedHakoMinus();
+        if (plus !== "") adjustments[Number(plus)] += 10 * minus.length;
+        minus.forEach((index) => { adjustments[index] -= 10; });
         return adjustments;
       }
 
@@ -1293,7 +1310,7 @@
         }
         const { ranks, points } = calculateGame(scores);
         const hakoPlus = byId("hakoPlus").value === "" ? null : Number(byId("hakoPlus").value);
-        const hakoMinus = byId("hakoMinus").value === "" ? null : Number(byId("hakoMinus").value);
+        const hakoMinus = selectedHakoMinus();
         const adjustments = hakoAdjustments(scores.length);
         const adjustedPoints = points.map((point, index) => point + adjustments[index]);
         const existingIndex = editingGameId ? session.games.findIndex((game) => game.id === editingGameId) : -1;
@@ -1401,8 +1418,11 @@
         document.querySelectorAll("[data-score-input]").forEach((input, index) => {
           input.value = game.scores[index] === null ? "" : String(game.scores[index]);
         });
+        const hakoMinus = new Set((Array.isArray(game.hakoMinus) ? game.hakoMinus : [game.hakoMinus]).filter(Number.isInteger).map(String));
+        byId("hakoMinus").querySelectorAll("input").forEach((input) => { input.checked = hakoMinus.has(input.value); });
+        updateHakoOptions();
         byId("hakoPlus").value = game.hakoPlus ?? "";
-        byId("hakoMinus").value = game.hakoMinus ?? "";
+        updateHakoOptions();
         byId("saveGame").textContent = "ゲームを更新";
         byId("cancelGameEdit").classList.remove("hidden");
         updatePreview();
