@@ -288,6 +288,8 @@
     .user-row:last-child { border-bottom: 0; }
     .user-name { font-weight: 700; }
     .user-count { color: var(--cp-text-muted); font-size: 12px; }
+    .backup-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 18px; }
+    .backup-file { display: none; }
     .toast {
       position: fixed;
       right: 20px;
@@ -441,6 +443,14 @@
         </div>
         <div class="panel-heading"><h3>既存ユーザー</h3><span class="muted" id="userCount"></span></div>
         <div id="userList" class="user-list"></div>
+      </section>
+      <section class="panel user-management">
+        <div class="panel-heading"><h3>バックアップ</h3></div>
+        <div class="backup-actions">
+          <button class="btn primary" id="exportBackup" type="button">バックアップを保存</button>
+          <button class="btn" id="importBackup" type="button">バックアップから復元</button>
+          <input class="backup-file" id="backupFile" type="file" accept="application/json,.json">
+        </div>
       </section>
     </section>
 
@@ -784,6 +794,49 @@
         input.focus();
         showToast(`${name}さんを追加しました。共有を更新しています`);
         pushSharedStore(true).then((success) => showToast(success ? "ユーザーを共有しました" : "共有更新に失敗しました"));
+      }
+
+      function exportBackup() {
+        const backup = {
+          format: "mahjong-scorebook-backup",
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          data: store
+        };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `mahjong-scorebook-backup-${today()}.json`;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+        showToast("バックアップを保存しました");
+      }
+
+      async function importBackup(file) {
+        if (!file) return;
+        try {
+          if (file.size > 5 * 1024 * 1024) throw new Error("backup too large");
+          const backup = JSON.parse(await file.text());
+          const data = backup?.format === "mahjong-scorebook-backup" ? backup.data : backup;
+          const validPlayers = Array.isArray(data?.players) && data.players.every((name) => typeof name === "string");
+          const validSessions = Array.isArray(data?.sessions) && data.sessions.every((session) =>
+            session && typeof session === "object" && Array.isArray(session.players) && Array.isArray(session.games)
+          );
+          if (!validPlayers || !validSessions) throw new Error("invalid backup");
+          if (!window.confirm("この端末と共有先の記録をバックアップの内容に置き換えます。よろしいですか？")) return;
+          store = { sessions: data.sessions, players: data.players, updatedAt: data.updatedAt || null };
+          persist();
+          renderKnownPlayers();
+          renderUserList();
+          const success = await pushSharedStore(true);
+          showToast(success ? "バックアップを復元しました" : "復元しました。共有更新には失敗しました");
+        } catch {
+          showToast("このバックアップファイルは復元できません");
+        } finally {
+          byId("backupFile").value = "";
+        }
       }
 
       function renderKnownPlayers() {
@@ -1664,6 +1717,9 @@
       byId("newUserName").addEventListener("keydown", (event) => {
         if (event.key === "Enter") addUser();
       });
+      byId("exportBackup").addEventListener("click", exportBackup);
+      byId("importBackup").addEventListener("click", () => byId("backupFile").click());
+      byId("backupFile").addEventListener("change", (event) => importBackup(event.target.files[0]));
       byId("showAllScores").addEventListener("click", showAllScores);
       byId("allScoresPeriod").addEventListener("change", renderAllScores);
       byId("closeAllScores").addEventListener("click", showSetup);
