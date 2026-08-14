@@ -1007,7 +1007,39 @@
           }
           return cell;
         }));
-        byId("allScoresFoot").replaceChildren(totalRow, averageRow);
+        const rankCounts = new Map(players.map((name) => [name, { games: 0, top: 0, rentai: 0, last: 0 }]));
+        sessions.forEach((session) => {
+          session.games.forEach((game) => {
+            session.players.forEach((name, index) => {
+              const rank = game.ranks?.[index];
+              if (!Number.isInteger(rank) || game.scores?.[index] === null) return;
+              const counts = rankCounts.get(name);
+              counts.games += 1;
+              if (rank === 1) counts.top += 1;
+              if (rank <= 2) counts.rentai += 1;
+              if (rank === 4) counts.last += 1;
+            });
+          });
+        });
+        const createRateRow = (label, key) => {
+          const row = document.createElement("tr");
+          const heading = document.createElement("th");
+          heading.textContent = label;
+          row.append(heading, ...players.map((name) => {
+            const counts = rankCounts.get(name);
+            const cell = document.createElement("td");
+            cell.textContent = counts.games ? `${(counts[key] / counts.games * 100).toFixed(1)}%` : "−";
+            return cell;
+          }));
+          return row;
+        };
+        byId("allScoresFoot").replaceChildren(
+          totalRow,
+          averageRow,
+          createRateRow("トップ率", "top"),
+          createRateRow("連対率", "rentai"),
+          createRateRow("ラス率", "last"),
+        );
       }
 
       function showAllScores() {
