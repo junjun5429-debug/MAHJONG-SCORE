@@ -554,12 +554,14 @@
       function loadStore() {
         try {
           const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
-          return parsed && Array.isArray(parsed.sessions)
-            ? { ...parsed, players: Array.isArray(parsed.players) ? parsed.players : [] }
-            : { sessions: [], players: [], updatedAt: null };
+          return normalizeSharedStore(parsed) || createEmptyStore();
         } catch {
-          return { sessions: [], players: [], updatedAt: null };
+          return createEmptyStore();
         }
+      }
+
+      function createEmptyStore() {
+        return { sessions: [], players: [], deletedSessionIds: [], updatedAt: null };
       }
 
       function persist() {
@@ -574,8 +576,72 @@
       function normalizeSharedStore(value) {
         const data = value?.data || value;
         return data && Array.isArray(data.sessions)
-          ? { sessions: data.sessions, players: Array.isArray(data.players) ? data.players : [], updatedAt: data.updatedAt || null }
+          ? {
+              sessions: data.sessions.map((session) => ({
+                ...session,
+                games: Array.isArray(session.games) ? session.games : [],
+                deletedGameIds: Array.isArray(session.deletedGameIds) ? session.deletedGameIds : []
+              })),
+              players: Array.isArray(data.players) ? data.players : [],
+              deletedSessionIds: Array.isArray(data.deletedSessionIds) ? data.deletedSessionIds : [],
+              updatedAt: data.updatedAt || null
+            }
           : null;
+      }
+
+      function timestamp(value) {
+        const parsed = Date.parse(value || "");
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+
+      function mergeSessions(localSession, sharedSession) {
+        const localUpdated = timestamp(localSession.updatedAt);
+        const sharedUpdated = timestamp(sharedSession.updatedAt);
+        const preferred = sharedUpdated > localUpdated ? sharedSession : localSession;
+        const deletedGameIds = [...new Set([
+          ...(localSession.deletedGameIds || []),
+          ...(sharedSession.deletedGameIds || [])
+        ])];
+        const games = new Map();
+        [...(sharedSession.games || []), ...(localSession.games || [])].forEach((game) => {
+          const existing = games.get(game.id);
+          if (!existing || timestamp(game.updatedAt || game.createdAt) >= timestamp(existing.updatedAt || existing.createdAt)) {
+            games.set(game.id, game);
+          }
+        });
+        deletedGameIds.forEach((id) => games.delete(id));
+        return {
+          ...preferred,
+          games: [...games.values()].sort((left, right) => timestamp(left.createdAt) - timestamp(right.createdAt)),
+          deletedGameIds,
+          updatedAt: localUpdated >= sharedUpdated ? localSession.updatedAt : sharedSession.updatedAt
+        };
+      }
+
+      function mergeStores(localStore, sharedStore) {
+        if (!sharedStore) return normalizeSharedStore(localStore) || createEmptyStore();
+        const deletedSessionIds = [...new Set([
+          ...(localStore.deletedSessionIds || []),
+          ...(sharedStore.deletedSessionIds || [])
+        ])];
+        const sessions = new Map(sharedStore.sessions.map((session) => [session.id, session]));
+        localStore.sessions.forEach((session) => {
+          const sharedSession = sessions.get(session.id);
+          sessions.set(session.id, sharedSession ? mergeSessions(session, sharedSession) : session);
+        });
+        deletedSessionIds.forEach((id) => sessions.delete(id));
+        return {
+          sessions: [...sessions.values()],
+          players: [...new Set([...(sharedStore.players || []), ...(localStore.players || [])])],
+          deletedSessionIds,
+          updatedAt: timestamp(localStore.updatedAt) >= timestamp(sharedStore.updatedAt)
+            ? localStore.updatedAt
+            : sharedStore.updatedAt
+        };
+      }
+
+      function touchSession(session) {
+        session.updatedAt = new Date().toISOString();
       }
 
       function supabaseHeaders() {
@@ -630,8 +696,11 @@
         showToast(`共有データ ${store.sessions.length}件を取得しました`);
       }
 
-      async function pushSharedStore(silent = false) {
+      async function pushSharedStore(silent = false, replace = false) {
         try {
+          if (!replace) store = mergeStores(store, await getSharedData());
+          store.updatedAt = new Date().toISOString();
+          saveLocalStore();
           const response = await fetch(`${SUPABASE_URL}/rest/v1/shared_scores?on_conflict=id`, {
             method: "POST",
             headers: { ...supabaseHeaders(), Prefer: "resolution=merge-duplicates,return=minimal" },
@@ -826,11 +895,11 @@
           );
           if (!validPlayers || !validSessions) throw new Error("invalid backup");
           if (!window.confirm("この端末と共有先の記録をバックアップの内容に置き換えます。よろしいですか？")) return;
-          store = { sessions: data.sessions, players: data.players, updatedAt: data.updatedAt || null };
+          store = normalizeSharedStore(data);
           persist();
           renderKnownPlayers();
           renderUserList();
-          const success = await pushSharedStore(true);
+          const success = await pushSharedStore(true, true);
           showToast(success ? "バックアップを復元しました" : "復元しました。共有更新には失敗しました");
         } catch {
           showToast("このバックアップファイルは復元できません");
@@ -1235,7 +1304,8 @@
           showToast("最終ポイントの合計が0になるように入力してください");
           return;
         }
-        store.sessions.push({ id: createId(), mode, date, players, manualTotals: totals, totalGames, pointRate: 50, chipEnabled: false, chipRate: 0, games: [], createdAt: new Date().toISOString() });
+        const createdAt = new Date().toISOString();
+        store.sessions.push({ id: createId(), mode, date, players, manualTotals: totals, totalGames, pointRate: 50, chipEnabled: false, chipRate: 0, games: [], deletedGameIds: [], createdAt, updatedAt: createdAt });
         persist();
         byId("manualPanel").classList.add("hidden");
         renderArchive();
@@ -1419,9 +1489,11 @@
         const adjustedPoints = points.map((point, index) => point + adjustments[index]);
         const existingIndex = editingGameId ? session.games.findIndex((game) => game.id === editingGameId) : -1;
         const existing = existingIndex >= 0 ? session.games[existingIndex] : null;
-        const game = { id: existing?.id || createId(), scores, ranks, points: adjustedPoints, hakoPlus, hakoMinus, createdAt: existing?.createdAt || new Date().toISOString() };
+        const now = new Date().toISOString();
+        const game = { id: existing?.id || createId(), scores, ranks, points: adjustedPoints, hakoPlus, hakoMinus, createdAt: existing?.createdAt || now, updatedAt: now };
         if (existingIndex >= 0) session.games[existingIndex] = game;
         else session.games.push(game);
+        touchSession(session);
         const wasEditing = existingIndex >= 0;
         editingGameId = null;
         persist();
@@ -1546,6 +1618,8 @@
         if (gameIndex < 0) return;
         if (!window.confirm(`${gameIndex + 1}Gのゲーム記録を削除しますか？`)) return;
         session.games.splice(gameIndex, 1);
+        session.deletedGameIds = [...new Set([...(session.deletedGameIds || []), gameId])];
+        touchSession(session);
         persist();
         renderSession();
         showToast("ゲーム記録を削除しました。共有を更新しています");
@@ -1560,6 +1634,7 @@
           return;
         }
         store.sessions = store.sessions.filter((session) => session.id !== sessionId);
+        store.deletedSessionIds = [...new Set([...(store.deletedSessionIds || []), sessionId])];
         pendingArchiveDeleteId = null;
         persist();
         renderArchive();
@@ -1631,6 +1706,7 @@
         session.chipEnabled = true;
         session.chipRate = chipRate;
         session.chipCounts = counts;
+        touchSession(session);
         persist();
         renderSession();
         renderSummary(session);
@@ -1658,6 +1734,7 @@
           return;
         }
         session.settledAt = new Date().toISOString();
+        touchSession(session);
         persist();
         showSetup();
         if (!autoPushIfEnabled()) showToast("記録を保存しました");
@@ -1675,7 +1752,8 @@
           showToast("プレイヤー名が重複しています");
           return;
         }
-        const session = { id: createId(), mode: setupMode, date, players, pointRate: rate, chipEnabled: false, chipRate: 0, games: [], createdAt: new Date().toISOString() };
+        const createdAt = new Date().toISOString();
+        const session = { id: createId(), mode: setupMode, date, players, pointRate: rate, chipEnabled: false, chipRate: 0, games: [], deletedGameIds: [], createdAt, updatedAt: createdAt };
         store.sessions.push(session);
         persist();
         openSession(session.id);
