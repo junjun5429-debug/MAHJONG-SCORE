@@ -452,6 +452,7 @@
           <input class="backup-file" id="backupFile" type="file" accept="application/json,.json">
         </div>
       </section>
+      <section id="sharedDatabaseSettings" class="panel user-management"></section>
     </section>
 
     <section id="allScoresView" class="hidden">
@@ -522,15 +523,20 @@
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <script src="firebase-config.js?v=1"></script>
+  <script src="firebase-store.js?v=1"></script>
   <script>
     (() => {
       "use strict";
 
       const STORAGE_KEY = "mahjong-scorebook-v1";
       const ACTIVE_SESSION_KEY = "mahjong-scorebook-active-session";
-      const SUPABASE_URL = "https://qqzrvdscnwdmpdrqdqtz.supabase.co";
-      const SUPABASE_KEY = "sb_publishable_KZgbYMI3wmd4KE2FVyW_Xg_TH04wI69";
       const SHARED_ROW_ID = "mahjong-scorebook";
+      const sharedDatabase = window.ScorebookDatabase.create({
+        id: SHARED_ROW_ID,
+        normalize: normalizeSharedStore,
+        merge: mergeStores
+      });
       const DEFAULT_PLAYERS = ["吉田", "横山", "佐々木", "山田", "松岡"];
       const UMA = { 1: 40, 2: 10, 3: -10, 4: -20 };
       const numberFormat = new Intl.NumberFormat("ja-JP");
@@ -644,14 +650,6 @@
         session.updatedAt = new Date().toISOString();
       }
 
-      function supabaseHeaders() {
-        return {
-          apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
-          "Content-Type": "application/json"
-        };
-      }
-
       async function fetchLegacySharedData() {
         try {
           const response = await fetch(`data.json?ts=${Date.now()}`, { cache: "no-store" });
@@ -663,62 +661,55 @@
       }
 
       async function getSharedData() {
-        try {
-          const response = await fetch(`${SUPABASE_URL}/rest/v1/shared_scores?id=eq.${encodeURIComponent(SHARED_ROW_ID)}&select=data`, {
-            headers: supabaseHeaders(),
-            cache: "no-store"
-          });
-          if (!response.ok) throw new Error(`read ${response.status}`);
-          const rows = await response.json();
-          const shared = normalizeSharedStore(rows[0]?.data);
-          if (shared) return shared;
-        } catch (error) {
-          console.error(error);
-        }
+        const shared = await sharedDatabase.read();
+        if (shared || sharedDatabase.isFirebase()) return shared;
         return fetchLegacySharedData();
       }
 
       async function pullSharedStore() {
         showToast("最新データを確認しています");
-        const shared = await getSharedData();
-        if (!shared) {
-          showToast("共有データが見つかりませんでした");
-          return;
+        try {
+          const shared = await getSharedData();
+          if (!shared) {
+            showToast("共有データがありません。設定の [共有 DB] で初回移行を確認してください。");
+            return;
+          }
+          if (JSON.stringify(store) === JSON.stringify(shared)) {
+            sharedDatabase.accept(shared);
+            showToast("すでに最新です");
+            return;
+          }
+          if (store.sessions.length && !confirm(`共有データ（${shared.sessions.length}件）でこの端末の記録を更新しますか？`)) return;
+          sharedDatabase.accept(shared);
+          store = shared;
+          saveLocalStore();
+          showSetup();
+          showToast(`共有データ ${store.sessions.length}件を取得しました`);
+        } catch (error) {
+          console.error(error);
+          showToast(sharedDatabase.errorMessage(error));
         }
-        if (JSON.stringify(store.sessions) === JSON.stringify(shared.sessions)) {
-          showToast("すでに最新です");
-          return;
-        }
-        if (store.sessions.length && !confirm(`共有データ（${shared.sessions.length}件）でこの端末の記録を更新しますか？`)) return;
-        store = shared;
-        saveLocalStore();
-        showSetup();
-        showToast(`共有データ ${store.sessions.length}件を取得しました`);
       }
 
       async function pushSharedStore(silent = false, replace = false) {
         try {
-          if (!replace) store = mergeStores(store, await getSharedData());
-          store.updatedAt = new Date().toISOString();
+          const saved = await sharedDatabase.write(store, { replace });
+          store = mergeStores(store, saved);
           saveLocalStore();
-          const response = await fetch(`${SUPABASE_URL}/rest/v1/shared_scores?on_conflict=id`, {
-            method: "POST",
-            headers: { ...supabaseHeaders(), Prefer: "resolution=merge-duplicates,return=minimal" },
-            body: JSON.stringify({ id: SHARED_ROW_ID, data: store, updated_at: new Date().toISOString() })
-          });
-          if (!response.ok) throw new Error(`write ${response.status}`);
           if (!silent) showToast("現在の記録を共有しました");
           return true;
         } catch (error) {
           console.error(error);
-          if (!silent) showToast("共有に失敗しました。設定を確認してください");
+          showToast(`端末には保存しました。${sharedDatabase.errorMessage(error)}`);
           return false;
         }
       }
 
       function autoPushIfEnabled() {
         showToast("記録を保存しました。共有を更新しています");
-        pushSharedStore(true).then((success) => showToast(success ? "共有データを更新しました" : "共有更新に失敗しました"));
+        pushSharedStore(true).then((success) => {
+          if (success) showToast("共有データを更新しました");
+        });
         return true;
       }
 
@@ -821,6 +812,17 @@
         byId("topActions").classList.add("hidden");
         byId("newUserName").value = "";
         renderUserList();
+        sharedDatabase.mountSettings(byId("sharedDatabaseSettings"), {
+          getLocalData: () => store,
+          onApplied: (data) => {
+            store = data;
+            saveLocalStore();
+            renderKnownPlayers();
+            renderUserList();
+            renderArchive();
+          },
+          notify: showToast
+        });
         byId("newUserName").focus();
       }
 
@@ -862,7 +864,9 @@
         input.value = "";
         input.focus();
         showToast(`${name}さんを追加しました。共有を更新しています`);
-        pushSharedStore(true).then((success) => showToast(success ? "ユーザーを共有しました" : "共有更新に失敗しました"));
+        pushSharedStore(true).then((success) => {
+          if (success) showToast("ユーザーを共有しました");
+        });
       }
 
       function exportBackup() {
@@ -900,7 +904,7 @@
           renderKnownPlayers();
           renderUserList();
           const success = await pushSharedStore(true, true);
-          showToast(success ? "バックアップを復元しました" : "復元しました。共有更新には失敗しました");
+          if (success) showToast("バックアップを復元しました");
         } catch {
           showToast("このバックアップファイルは復元できません");
         } finally {
@@ -1499,7 +1503,9 @@
         persist();
         renderSession();
         showToast(wasEditing ? "ゲーム記録を更新しました。共有を更新しています" : `${session.games.length}Gを記録しました。共有を更新しています`);
-        pushSharedStore(true).then((success) => showToast(success ? "共有データを更新しました" : "共有更新に失敗しました"));
+        pushSharedStore(true).then((success) => {
+          if (success) showToast("共有データを更新しました");
+        });
       }
 
       function clearScores() {
@@ -1623,7 +1629,9 @@
         persist();
         renderSession();
         showToast("ゲーム記録を削除しました。共有を更新しています");
-        pushSharedStore(true).then((success) => showToast(success ? "共有データを更新しました" : "共有更新に失敗しました"));
+        pushSharedStore(true).then((success) => {
+          if (success) showToast("共有データを更新しました");
+        });
       }
 
       function requestArchiveDelete(sessionId) {
@@ -1808,10 +1816,16 @@
         }
         const hadLocal = Boolean(localStorage.getItem(STORAGE_KEY));
         if (!hadLocal || store.sessions.length === 0) {
-          const shared = await getSharedData();
-          if (shared && shared.sessions.length > 0) {
-            store = shared;
-            saveLocalStore();
+          try {
+            const shared = await getSharedData();
+            if (shared) {
+              sharedDatabase.accept(shared);
+              store = hadLocal ? mergeStores(store, shared) : shared;
+              saveLocalStore();
+            }
+          } catch (error) {
+            console.error(error);
+            showToast(sharedDatabase.errorMessage(error));
           }
         }
         const savedSessionId = sessionStorage.getItem(ACTIVE_SESSION_KEY);

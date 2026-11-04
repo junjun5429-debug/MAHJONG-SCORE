@@ -1,7 +1,9 @@
-const CACHE_NAME = "mahjong-scorebook-v3";
+const CACHE_NAME = "mahjong-scorebook-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
+  "./firebase-config.js?v=1",
+  "./firebase-store.js?v=1",
   "./manifest.webmanifest",
   "./apple-touch-icon.png",
   "./favicon-32.png",
@@ -17,7 +19,7 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+    caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("mahjong-scorebook-") && key !== CACHE_NAME).map((key) => caches.delete(key))))
   );
   self.clients.claim();
 });
@@ -28,6 +30,21 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  if (url.pathname.endsWith("/firebase-config.js")) {
+    event.respondWith(
+      fetch(request).then((response) => {
+        if (!response.ok) throw new Error(`Firebase configuration HTTP ${response.status}`);
+        const copy = response.clone();
+        event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)));
+        return response;
+      }).catch((error) => caches.match(request).then((cached) => {
+        if (cached) return cached;
+        throw error;
+      }))
+    );
+    return;
+  }
 
   if (request.mode === "navigate") {
     event.respondWith(
