@@ -1,9 +1,9 @@
-const CACHE_NAME = "mahjong-scorebook-v4";
+const CACHE_NAME = "mahjong-scorebook-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./firebase-config.js?v=1",
-  "./firebase-store.js?v=1",
+  "./firebase-store.js?v=2",
   "./manifest.webmanifest",
   "./apple-touch-icon.png",
   "./favicon-32.png",

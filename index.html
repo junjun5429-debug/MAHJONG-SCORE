@@ -452,7 +452,6 @@
           <input class="backup-file" id="backupFile" type="file" accept="application/json,.json">
         </div>
       </section>
-      <section id="sharedDatabaseSettings" class="panel user-management"></section>
     </section>
 
     <section id="allScoresView" class="hidden">
@@ -524,7 +523,7 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="firebase-config.js?v=1"></script>
-  <script src="firebase-store.js?v=1"></script>
+  <script src="firebase-store.js?v=2"></script>
   <script>
     (() => {
       "use strict";
@@ -671,7 +670,7 @@
         try {
           const shared = await getSharedData();
           if (!shared) {
-            showToast("共有データがありません。設定の [共有 DB] で初回移行を確認してください。");
+            showToast("共有データが見つかりません。管理者に接続先とデータの確認を依頼してください。");
             return;
           }
           if (JSON.stringify(store) === JSON.stringify(shared)) {
@@ -812,17 +811,6 @@
         byId("topActions").classList.add("hidden");
         byId("newUserName").value = "";
         renderUserList();
-        sharedDatabase.mountSettings(byId("sharedDatabaseSettings"), {
-          getLocalData: () => store,
-          onApplied: (data) => {
-            store = data;
-            saveLocalStore();
-            renderKnownPlayers();
-            renderUserList();
-            renderArchive();
-          },
-          notify: showToast
-        });
         byId("newUserName").focus();
       }
 
