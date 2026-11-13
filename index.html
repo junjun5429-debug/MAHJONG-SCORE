@@ -115,9 +115,9 @@
     .setup {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
-      gap: 24px;
+      gap: 16px;
       align-items: start;
-      padding-top: 28px;
+      padding-top: 0;
     }
     .setup-main { min-width: 0; }
     .setup-main > p { max-width: 590px; line-height: 1.65; }
@@ -127,22 +127,30 @@
       background: var(--cp-surface);
       box-shadow: 0 0 2px var(--cp-border), 0 1px 2px var(--cp-border);
     }
-    .setup-panel { padding: 24px; }
+    .setup-panel { padding: 16px; }
+    .setup-panel > h2 { font-size: 20px; }
+    .setup-panel > p { margin-bottom: 12px; font-size: 14px; line-height: 1.5; }
+    .setup-panel .field { gap: 4px; margin-bottom: 0; }
+    .step-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .step-heading .eyebrow, .step-heading h3 { margin: 0; }
     .step { display: none; }
     .step.active { display: block; animation: reveal .24s ease-out; }
     @keyframes reveal { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
-    .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
+    .mode-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0 0 12px; }
     .mode-option {
       position: relative;
-      min-height: 116px;
-      padding: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 64px;
+      padding: 12px 16px;
       border: 2px solid var(--cp-border);
       border-radius: .625rem;
       background: var(--cp-surface-soft);
       text-align: left;
     }
     .mode-option.selected { border-color: var(--cp-accent); background: var(--cp-accent-soft); }
-    .mode-number { display: block; color: var(--cp-accent); font: 700 34px Georgia, serif; }
+    .mode-number { display: block; color: var(--cp-accent); font: 700 28px/1 Georgia, serif; }
     .field { display: grid; min-width: 0; gap: 6px; margin-bottom: 14px; }
     label { color: var(--cp-text-muted); font-size: 13px; font-weight: 650; }
     input, select {
@@ -162,8 +170,9 @@
       min-width: 0;
       max-width: 100%;
     }
-    .player-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
-    .setup-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 20px; }
+    .player-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .setup-details { grid-template-columns: repeat(auto-fit, minmax(152px, 1fr)); margin-bottom: 12px; }
+    .setup-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; }
     .session-header {
       display: flex;
       align-items: flex-end;
@@ -172,6 +181,9 @@
       margin-bottom: 18px;
     }
     .session-title h2 { margin-bottom: 3px; }
+    #scoreView .session-title { flex: 1; min-width: 0; }
+    #sessionMeta { display: grid; gap: 4px; }
+    #sessionMeta span { white-space: nowrap; }
     .session-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
     .summary-grid { display: grid; grid-template-columns: repeat(var(--players), minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
     .summary-card { padding: 15px; overflow: hidden; }
@@ -266,13 +278,16 @@
     .archive-point { font-family: Consolas, "Courier New", monospace; font-weight: 700; line-height: 21px; white-space: nowrap; }
     .archive-point.positive { color: var(--cp-link); }
     .archive-point.negative { color: var(--cp-danger); }
-    .all-scores { overflow-x: auto; }
-    .all-scores-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--cp-border); }
+    .all-scores { overflow: hidden; }
+    .all-scores-toolbar { display: flex; align-items: center; justify-content: flex-start; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--cp-border); }
     .all-scores-toolbar label { color: var(--cp-text-muted); font-size: 13px; font-weight: 700; }
     .all-scores-toolbar select { width: auto; min-width: 140px; }
+    .all-scores-scroll { max-height: 70vh; max-height: 70dvh; overflow: auto; }
     .all-scores-table { width: 100%; min-width: 720px; border-collapse: collapse; }
     .all-scores-table th, .all-scores-table td { padding: 11px 13px; border-bottom: 1px solid var(--cp-border); text-align: right; white-space: nowrap; }
     .all-scores-table th:first-child, .all-scores-table td:first-child { position: sticky; left: 0; z-index: 1; background: var(--cp-surface); text-align: left; }
+    .all-scores-table thead th { position: sticky; top: 0; z-index: 2; background: var(--cp-surface); }
+    .all-scores-table thead th:first-child { z-index: 3; }
     .all-scores-table thead th, .all-scores-table tfoot th, .all-scores-table tfoot td { color: var(--cp-text); font-weight: 700; }
     .all-scores-table .positive { color: var(--cp-link); }
     .all-scores-table .negative { color: var(--cp-danger); }
@@ -314,6 +329,21 @@
       .summary-grid, .score-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .chip-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .history-panel { order: 2; }
+      #scoreView .session-header { flex-wrap: wrap; gap: 12px; }
+      #scoreView .session-title { flex-basis: 100%; }
+      #scoreView .session-actions { flex: 1 1 100%; max-width: none; }
+    }
+    @media (max-width: 640px) {
+      .history-table { min-width: 0; font-size: 12px; }
+      .history-table th, .history-table td { padding: 8px 3px; overflow-wrap: anywhere; }
+      .history-table thead th { font-size: 11px; }
+      .history-table thead th:first-child, .history-table .game-cell { width: 44px; }
+      .history-table .game-label { margin-bottom: 4px; font-size: 12px; }
+      .history-tools { flex-direction: column; gap: 4px; }
+      .history-edit { padding: 4px 5px; }
+      .history-result { min-width: 0; }
+      .history-raw-score { font-size: 11px; }
+      .history-point { margin-top: 4px; font-size: 13px; }
     }
     @media (max-width: 560px) {
       .shell { padding: 16px 12px; }
@@ -327,8 +357,6 @@
       .session-actions { max-width: 180px; }
       .topbar { margin-bottom: 16px; }
       .brand-copy .muted { display: none; }
-      .setup-panel { padding: 18px; }
-      .mode-grid, .player-fields { grid-template-columns: 1fr; }
       .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .score-grid { grid-template-columns: 1fr; }
       .hako-row { grid-template-columns: 1fr 1fr; }
@@ -378,8 +406,10 @@
         <h2>今日の卓をはじめる</h2>
         <p class="muted">参加人数、日付、メンバーを登録するとスコア入力を開始します。</p>
         <div id="modeStep" class="step active">
-          <div class="eyebrow">Step 1</div>
-          <h3>参加人数</h3>
+          <div class="step-heading">
+            <div class="eyebrow">Step 1</div>
+            <h3>参加人数</h3>
+          </div>
           <div class="mode-grid">
             <button class="mode-option" type="button" data-mode="4"><span class="mode-number">4</span>人用</button>
             <button class="mode-option" type="button" data-mode="5"><span class="mode-number">5</span>人用</button>
@@ -387,10 +417,12 @@
           <button class="btn primary" id="modeNext" type="button" disabled>次へ</button>
         </div>
         <div id="playersStep" class="step">
-          <div class="eyebrow">Step 2</div>
-          <h3>日付とプレイヤー</h3>
-          <div class="field"><label for="sessionDate">日付</label><input id="sessionDate" type="date"></div>
-          <div class="player-fields">
+          <div class="step-heading">
+            <div class="eyebrow">Step 2</div>
+            <h3>日付とプレイヤー</h3>
+          </div>
+          <div class="player-fields setup-details">
+            <div class="field"><label for="sessionDate">日付</label><input id="sessionDate" type="date"></div>
             <div class="field">
               <label for="pointRate">点数レート</label>
               <select id="pointRate"><option value="50">点5（×50）</option><option value="100">点10（×100）</option></select>
@@ -464,41 +496,48 @@
           <label for="allScoresPeriod">表示期間</label>
           <select id="allScoresPeriod"></select>
         </div>
-        <table class="all-scores-table">
-          <thead id="allScoresHead"></thead>
-          <tbody id="allScoresBody"></tbody>
-          <tfoot id="allScoresFoot"></tfoot>
-        </table>
+        <div class="all-scores-scroll" role="region" aria-label="全員のスコア一覧" tabindex="0">
+          <table class="all-scores-table">
+            <thead id="allScoresHead"></thead>
+            <tbody id="allScoresBody"></tbody>
+            <tfoot id="allScoresFoot"></tfoot>
+          </table>
+        </div>
       </section>
     </section>
 
     <section id="scoreView" class="hidden">
       <div class="session-header">
-        <div class="session-title"><div class="eyebrow" id="sessionMeta"></div><h2 id="sessionHeading"></h2></div>
+        <div class="session-title">
+          <div class="eyebrow" id="sessionMeta"><span id="sessionDateLabel"></span><span id="sessionRules"></span></div>
+        </div>
         <div class="session-actions">
+          <label class="check-row" title="チェックを入れるとスコアやチップを編集できます"><input id="editSession" type="checkbox">編集</label>
           <button class="btn hidden" id="openChipInput" type="button">チップ入力</button>
           <button class="btn" id="exitWithoutSaving" type="button">保存せず終了</button>
-          <button class="btn" id="saveSession" type="button">保存</button>
+          <button class="btn" id="saveSession" type="button">一時保存</button>
           <button class="btn" id="finishSession" type="button">保存して終了</button>
         </div>
       </div>
       <div id="summaryGrid" class="summary-grid"></div>
       <section id="settlementPanel" class="panel settlement-panel hidden">
-        <div class="panel-heading"><h3>チップ集計</h3><span class="muted">20枚原点</span></div>
+        <div class="panel-heading"><h3>チップ集計</h3><span class="muted">20 枚原点</span></div>
         <div class="settlement-content">
+          <p class="muted">清算額 = (持ちチップ − 20) × レート。借り入れがある場合も、合計枚数に関係なく保存できます。</p>
+          <p class="muted">チップはこの卓全体で 1 つだけ集計します。[保存] でチップ清算に反映して端末内に一時保存し、[保存して終了] で共有データに保存します。[閉じる] では入力内容を反映せずにフォームを閉じます。</p>
           <div class="field"><label for="settlementChipRate">チップレート（1枚）</label><input id="settlementChipRate" type="number" min="1" step="50" inputmode="numeric" placeholder="例：500"></div>
           <div id="chipGrid" class="chip-grid"></div>
           <div class="chip-check">
             <span id="chipTotalMessage" class="muted"></span>
             <div class="actions">
-              <button class="btn" id="cancelSettlement" type="button">破棄して閉じる</button>
-              <button class="btn primary" id="confirmSettlement" type="button" disabled>チップを保存</button>
+              <button class="btn" id="cancelSettlement" type="button">閉じる</button>
+              <button class="btn primary" id="confirmSettlement" type="button" disabled>保存</button>
             </div>
           </div>
         </div>
       </section>
       <div class="workspace">
-        <section class="panel game-panel">
+        <section id="scoreInputPanel" class="panel game-panel">
           <div class="panel-heading"><h3>スコア入力</h3><span class="game-number" id="gameNumber"></span></div>
           <div id="sitoutRow" class="sitout-row hidden">
             <label for="sitoutPlayer">休み</label><select id="sitoutPlayer"></select>
@@ -547,6 +586,7 @@
       let toastTimer = null;
       let pendingArchiveDeleteId = null;
       let editingGameId = null;
+      let isFinishingSession = false;
 
       const byId = (id) => document.getElementById(id);
       const setupView = byId("setupView");
@@ -576,6 +616,12 @@
 
       function saveLocalStore() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+      }
+
+      function saveSessionDraft(session) {
+        session.isLocalDraft = true;
+        touchSession(session);
+        persist();
       }
 
       function normalizeSharedStore(value) {
@@ -690,11 +736,38 @@
         }
       }
 
-      async function pushSharedStore(silent = false, replace = false) {
+      async function pushSharedStore(silent = false, replace = false, publishSessionId = null) {
         try {
-          const saved = await sharedDatabase.write(store, { replace });
-          store = mergeStores(store, saved);
+          const sharedStore = {
+            ...store,
+            sessions: store.sessions
+              .filter((session) => !session.isLocalDraft || session.id === publishSessionId)
+              .map(({ isLocalDraft, ...session }) => session)
+          };
+          const saved = await sharedDatabase.write(sharedStore, { replace });
+          const session = activeSession();
+          const drafts = store.sessions.filter((item) => item.isLocalDraft && item.id !== publishSessionId);
+          const merged = mergeStores(store, saved);
+          const sessions = new Map(merged.sessions.map((item) => [item.id, item]));
+          drafts.forEach((item) => sessions.set(item.id, item));
+          store = { ...merged, sessions: [...sessions.values()] };
+          const publishedSession = store.sessions.find((item) => item.id === publishSessionId);
+          if (publishedSession) delete publishedSession.isLocalDraft;
           saveLocalStore();
+          if (session && !store.sessions.some((item) => item.id === session.id)) {
+            if (!confirm("この卓は共有データで削除されています。\n入力中の内容を新しい卓へ引き継いで続けますか?\n[キャンセル] を選ぶと入力を破棄して一覧に戻ります。")) {
+              showSetup();
+              showToast("削除済みの卓の入力を破棄して一覧に戻りました");
+              return false;
+            }
+            const createdAt = new Date().toISOString();
+            const recoveredSession = { ...session, id: createId(), createdAt, updatedAt: createdAt };
+            store.sessions.push(recoveredSession);
+            activeSessionId = recoveredSession.id;
+            sessionStorage.setItem(ACTIVE_SESSION_KEY, activeSessionId);
+            saveSessionDraft(recoveredSession);
+            return pushSharedStore(silent, replace, recoveredSession.id);
+          }
           if (!silent) showToast("現在の記録を共有しました");
           return true;
         } catch (error) {
@@ -735,6 +808,22 @@
 
       function activeSession() {
         return store.sessions.find((session) => session.id === activeSessionId) || null;
+      }
+
+      function isSessionEditable() {
+        return byId("editSession").checked;
+      }
+
+      function requireSessionEdit(session) {
+        if (!session) {
+          showToast("編集中の卓が見つかりません。入力内容を控えてから一覧に戻り、卓を開き直してください");
+          return false;
+        }
+        if (!isSessionEditable()) {
+          showToast("記録を変更するには [編集] にチェックを入れてください");
+          return false;
+        }
+        return true;
       }
 
       function rankScores(scores) {
@@ -922,7 +1011,7 @@
           select.dataset.playerInput = "true";
           const placeholder = document.createElement("option");
           placeholder.value = "";
-          placeholder.textContent = "プレイヤーを選択";
+          placeholder.textContent = "選択";
           select.append(placeholder, ...knownPlayers.map((name) => {
             const option = document.createElement("option");
             option.value = name;
@@ -944,7 +1033,7 @@
           const selected = input.value;
           const placeholder = document.createElement("option");
           placeholder.value = "";
-          placeholder.textContent = "プレイヤーを選択";
+          placeholder.textContent = "選択";
           input.replaceChildren(placeholder, ...knownPlayers.filter((name) => name === selected || !selectedElsewhere.has(name)).map((name) => {
             const option = document.createElement("option");
             option.value = name;
@@ -979,7 +1068,7 @@
           date.textContent = formatDate(session.date);
           const games = document.createElement("span");
           games.className = "archive-games";
-          games.textContent = `${gameCount(session)}G`;
+          games.textContent = `${gameCount(session)}G${session.isLocalDraft ? " · 端末内の一時保存" : ""}`;
           dateDetails.append(date, games);
           dateCell.append(dateDetails);
           const membersCell = document.createElement("td");
@@ -1029,10 +1118,11 @@
         }));
       }
 
-      function openSession(id) {
+      function openSession(id, editable = false) {
         activeSessionId = id;
         sessionStorage.setItem(ACTIVE_SESSION_KEY, id);
         editingGameId = null;
+        byId("editSession").checked = editable;
         setupView.classList.add("hidden");
         allScoresView.classList.add("hidden");
         userManagementView.classList.add("hidden");
@@ -1040,6 +1130,12 @@
         byId("topActions").classList.add("hidden");
         renderSession();
         window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      function renderSessionMeta(session) {
+        const chipMeta = session.chipEnabled ? `チップ ${numberFormat.format(session.chipRate)}/枚` : "チップなし";
+        byId("sessionDateLabel").textContent = formatDate(session.date);
+        byId("sessionRules").textContent = `点${pointRate(session) === 100 ? 10 : 5} - ${chipMeta}`;
       }
 
       function renderSession() {
@@ -1050,14 +1146,23 @@
           byId("cancelGameEdit").classList.add("hidden");
         }
         document.documentElement.style.setProperty("--players", session.mode);
-        const chipMeta = session.chipEnabled ? ` · チップ ${numberFormat.format(session.chipRate)}/枚` : " · チップなし";
-        byId("sessionMeta").textContent = `${formatDate(session.date)} · ${session.mode}人用 · 点${pointRate(session) === 100 ? 10 : 5}${chipMeta}`;
-        byId("sessionHeading").textContent = session.players.join("・");
+        renderSessionMeta(session);
         byId("gameNumber").textContent = `${session.games.length + 1}G`;
-        byId("openChipInput").classList.remove("hidden");
         byId("settlementPanel").classList.add("hidden");
         renderSummary(session);
         renderScoreInputs(session);
+        updateSessionEditMode();
+      }
+
+      function updateSessionEditMode() {
+        const session = activeSession();
+        if (!session) return;
+        const editable = isSessionEditable();
+        ["scoreInputPanel", "openChipInput", "saveSession", "finishSession"].forEach((id) => {
+          byId(id).classList.toggle("hidden", !editable);
+        });
+        if (!editable) byId("settlementPanel").classList.add("hidden");
+        byId("exitWithoutSaving").textContent = editable ? "保存せず終了" : "戻る";
         renderHistory(session);
       }
 
@@ -1415,21 +1520,26 @@
         });
       }
 
-      function updateFinalScoreInput() {
+      function updateFinalScoreInput(editedInput) {
         const inputs = [...document.querySelectorAll("[data-score-input]")];
-        inputs.forEach((input) => { input.readOnly = false; });
+        inputs.forEach((input) => {
+          if (input.dataset.autoScore) {
+            if (input !== editedInput) input.value = "";
+            delete input.dataset.autoScore;
+          }
+        });
         const activeInputs = inputs.filter((input) => !input.disabled);
-        const finalInput = activeInputs.at(-1);
-        if (!finalInput) return;
-        finalInput.readOnly = true;
-        const precedingScores = activeInputs.slice(0, -1).map((input) => input.value.trim() === "" ? null : Number(input.value));
-        finalInput.value = precedingScores.every(Number.isFinite)
-          ? String(100000 - precedingScores.reduce((sum, score) => sum + score, 0))
-          : "";
+        const emptyInputs = activeInputs.filter((input) => input.value.trim() === "");
+        if (emptyInputs.length !== 1 || emptyInputs[0] === editedInput) return;
+        const finalInput = emptyInputs[0];
+        const enteredScores = activeInputs.filter((input) => input !== finalInput).map((input) => Number(input.value));
+        if (!enteredScores.every(Number.isFinite)) return;
+        finalInput.value = String(100000 - enteredScores.reduce((sum, score) => sum + score, 0));
+        finalInput.dataset.autoScore = "true";
       }
 
-      function updatePreview() {
-        updateFinalScoreInput();
+      function updatePreview(event) {
+        updateFinalScoreInput(event?.target);
         const scores = currentScores();
         const activeScores = scores.filter((score) => score !== null);
         const expectedCount = 4;
@@ -1455,7 +1565,7 @@
         state.classList.remove("ok", "bad");
         byId("totalValue").textContent = activeScores.length ? numberFormat.format(total) : "";
         if (!complete) {
-          byId("totalMessage").textContent = "3名分を入力すると最後の点数を自動計算";
+          byId("totalMessage").textContent = "任意の 3 人分を入力すると、残り 1 人の点数を自動計算";
         } else if (total === 100000) {
           state.classList.add("ok");
           byId("totalMessage").textContent = "点数チェック OK";
@@ -1468,6 +1578,7 @@
 
       function saveGame() {
         const session = activeSession();
+        if (!requireSessionEdit(session)) return;
         const scores = currentScores();
         const activeScores = scores.filter((score) => score !== null);
         if (activeScores.length !== 4 || activeScores.reduce((sum, score) => sum + score, 0) !== 100000) {
@@ -1485,15 +1596,11 @@
         const game = { id: existing?.id || createId(), scores, ranks, points: adjustedPoints, hakoPlus, hakoMinus, createdAt: existing?.createdAt || now, updatedAt: now };
         if (existingIndex >= 0) session.games[existingIndex] = game;
         else session.games.push(game);
-        touchSession(session);
         const wasEditing = existingIndex >= 0;
         editingGameId = null;
-        persist();
+        saveSessionDraft(session);
         renderSession();
-        showToast(wasEditing ? "ゲーム記録を更新しました。共有を更新しています" : `${session.games.length}Gを記録しました。共有を更新しています`);
-        pushSharedStore(true).then((success) => {
-          if (success) showToast("共有データを更新しました");
-        });
+        showToast(wasEditing ? "ゲーム記録を端末内で更新しました" : `${session.games.length}Gを端末内に記録しました`);
       }
 
       function clearScores() {
@@ -1534,22 +1641,25 @@
           const title = document.createElement("strong");
           title.className = "game-label";
           title.textContent = `${gameIndex}G`;
-          const tools = document.createElement("div");
-          tools.className = "history-tools";
-          const editButton = document.createElement("button");
-          editButton.type = "button";
-          editButton.className = "btn history-edit";
-          editButton.textContent = "編集";
-          editButton.addEventListener("click", () => editGame(game.id));
-          const deleteButton = document.createElement("button");
-          deleteButton.type = "button";
-          deleteButton.className = "history-delete";
-          deleteButton.title = `${gameIndex}Gを削除`;
-          deleteButton.setAttribute("aria-label", `${gameIndex}Gを削除`);
-          deleteButton.textContent = "×";
-          deleteButton.addEventListener("click", () => deleteGame(game.id));
-          tools.append(editButton, deleteButton);
-          gameCell.append(title, tools);
+          gameCell.append(title);
+          if (isSessionEditable()) {
+            const tools = document.createElement("div");
+            tools.className = "history-tools";
+            const editButton = document.createElement("button");
+            editButton.type = "button";
+            editButton.className = "btn history-edit";
+            editButton.textContent = "編集";
+            editButton.addEventListener("click", () => editGame(game.id));
+            const deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.className = "history-delete";
+            deleteButton.title = `${gameIndex}Gを削除`;
+            deleteButton.setAttribute("aria-label", `${gameIndex}Gを削除`);
+            deleteButton.textContent = "×";
+            deleteButton.addEventListener("click", () => deleteGame(game.id));
+            tools.append(editButton, deleteButton);
+            gameCell.append(tools);
+          }
           row.append(gameCell);
           session.players.forEach((name, index) => {
             const result = document.createElement("td");
@@ -1579,8 +1689,9 @@
 
       function editGame(gameId) {
         const session = activeSession();
-        const game = session?.games.find((item) => item.id === gameId);
-        if (!session || !game) return;
+        if (!requireSessionEdit(session)) return;
+        const game = session.games.find((item) => item.id === gameId);
+        if (!game) return;
         editingGameId = gameId;
         const restingIndex = game.scores.findIndex((score) => score === null);
         if (session.mode === 5 && restingIndex >= 0) byId("sitoutPlayer").value = String(restingIndex);
@@ -1607,19 +1718,15 @@
 
       function deleteGame(gameId) {
         const session = activeSession();
-        if (!session) return;
+        if (!requireSessionEdit(session)) return;
         const gameIndex = session.games.findIndex((game) => game.id === gameId);
         if (gameIndex < 0) return;
         if (!window.confirm(`${gameIndex + 1}Gのゲーム記録を削除しますか？`)) return;
         session.games.splice(gameIndex, 1);
         session.deletedGameIds = [...new Set([...(session.deletedGameIds || []), gameId])];
-        touchSession(session);
-        persist();
+        saveSessionDraft(session);
         renderSession();
-        showToast("ゲーム記録を削除しました。共有を更新しています");
-        pushSharedStore(true).then((success) => {
-          if (success) showToast("共有データを更新しました");
-        });
+        showToast("ゲーム記録を端末内で削除しました");
       }
 
       function requestArchiveDelete(sessionId) {
@@ -1640,7 +1747,7 @@
 
       function openSettlement() {
         const session = activeSession();
-        if (!session) return;
+        if (!requireSessionEdit(session)) return;
         const panel = byId("settlementPanel");
         panel.classList.remove("hidden");
         byId("settlementChipRate").value = session.chipRate > 0 ? session.chipRate : "";
@@ -1665,75 +1772,91 @@
         panel.scrollIntoView({ behavior: "smooth", block: "start" });
       }
 
+      function currentChipCounts() {
+        return [...byId("chipGrid").querySelectorAll("input")].map((input) => input.value.trim() === "" ? null : Number(input.value));
+      }
+
       function updateChipPreview() {
         const session = activeSession();
         const chipRate = Number(byId("settlementChipRate").value);
-        const inputs = [...byId("chipGrid").querySelectorAll("input")];
-        const expected = session.players.length * 20;
-        const finalInput = inputs.at(-1);
-        if (finalInput) {
-          finalInput.readOnly = true;
-          const precedingCounts = inputs.slice(0, -1).map((input) => input.value.trim() === "" ? null : Number(input.value));
-          finalInput.value = precedingCounts.every(Number.isInteger)
-            ? String(expected - precedingCounts.reduce((sum, count) => sum + count, 0))
-            : "";
-        }
-        const counts = inputs.map((input) => input.value === "" ? null : Number(input.value));
+        const counts = currentChipCounts();
         const complete = counts.length === session.players.length && counts.every(Number.isInteger);
-        const total = counts.reduce((sum, count) => sum + (count || 0), 0);
         byId("chipTotalMessage").textContent = complete
-          ? `合計 ${total}枚（${total === expected ? "OK" : `差分 ${total - expected}枚`}）`
-          : `最後の1名は自動計算（合計 ${expected}枚）`;
-        byId("confirmSettlement").disabled = !complete || total !== expected || !Number.isFinite(chipRate) || chipRate <= 0;
+          ? `合計 ${numberFormat.format(counts.reduce((sum, count) => sum + count, 0))} 枚 (合計枚数の制限なし)`
+          : "全員の持ちチップを入力してください (合計枚数の制限なし)";
+        byId("confirmSettlement").disabled = !complete || !Number.isFinite(chipRate) || chipRate <= 0;
       }
 
       function cancelSettlement() {
-        byId("settlementChipRate").value = "";
-        byId("chipGrid").replaceChildren();
         byId("settlementPanel").classList.add("hidden");
-        showToast("チップ入力を破棄しました");
       }
 
       function confirmSettlement() {
         const session = activeSession();
+        if (!requireSessionEdit(session)) return;
         const chipRate = Number(byId("settlementChipRate").value);
-        const counts = [...byId("chipGrid").querySelectorAll("input")].map((input) => Number(input.value));
-        if (!Number.isFinite(chipRate) || chipRate <= 0 || counts.reduce((sum, count) => sum + count, 0) !== session.players.length * 20) return;
+        const counts = currentChipCounts();
+        if (!Number.isFinite(chipRate) || chipRate <= 0 || counts.length !== session.players.length || !counts.every(Number.isInteger)) {
+          showToast("全員の持ちチップを整数で入力し、0 より大きいレートを指定してください");
+          return;
+        }
         session.chipEnabled = true;
         session.chipRate = chipRate;
         session.chipCounts = counts;
-        touchSession(session);
-        persist();
-        renderSession();
+        saveSessionDraft(session);
+        renderSessionMeta(session);
         renderSummary(session);
-        autoPushIfEnabled();
-        showToast("チップを保存しました");
+        showToast("この卓のチップを端末内に一時保存しました");
       }
 
       function saveSession() {
-        if (!activeSession()) return;
-        persist();
-        autoPushIfEnabled();
+        const session = activeSession();
+        if (!requireSessionEdit(session)) return;
+        saveSessionDraft(session);
+        showToast("この卓の記録を端末内に一時保存しました");
       }
 
       function exitWithoutSaving() {
+        const editable = isSessionEditable();
         showSetup();
-        showToast("保存せず終了しました");
+        if (editable) showToast("保存せず終了しました");
       }
 
-      function saveAndExit() {
+      async function saveAndExit() {
         const session = activeSession();
-        if (!session) return;
+        if (isFinishingSession || !requireSessionEdit(session)) return;
+        if (!byId("settlementPanel").classList.contains("hidden")) {
+          const counts = currentChipCounts();
+          if (counts.some((count, index) => count !== (session.chipCounts?.[index] ?? null)) ||
+              Number(byId("settlementChipRate").value) !== (session.chipRate || 0)) {
+            showToast("チップ集計の [保存] で入力内容を反映してから終了してください");
+            return;
+          }
+        }
         if (session.chipEnabled && !Array.isArray(session.chipCounts)) {
           openSettlement();
           showToast("持ちチップを入力して保存してください");
           return;
         }
         session.settledAt = new Date().toISOString();
-        touchSession(session);
-        persist();
-        showSetup();
-        if (!autoPushIfEnabled()) showToast("記録を保存しました");
+        saveSessionDraft(session);
+        isFinishingSession = true;
+        scoreView.inert = true;
+        scoreView.setAttribute("aria-busy", "true");
+        byId("finishSession").disabled = true;
+        byId("finishSession").textContent = "共有に保存中...";
+        showToast("この卓の記録を共有データに保存しています");
+        try {
+          if (!await pushSharedStore(true, false, session.id)) return;
+          showSetup();
+          showToast("この卓の記録を共有データに保存して終了しました");
+        } finally {
+          isFinishingSession = false;
+          scoreView.inert = false;
+          scoreView.removeAttribute("aria-busy");
+          byId("finishSession").disabled = false;
+          byId("finishSession").textContent = "保存して終了";
+        }
       }
 
       function startSession() {
@@ -1751,8 +1874,8 @@
         const createdAt = new Date().toISOString();
         const session = { id: createId(), mode: setupMode, date, players, pointRate: rate, chipEnabled: false, chipRate: 0, games: [], deletedGameIds: [], createdAt, updatedAt: createdAt };
         store.sessions.push(session);
-        persist();
-        openSession(session.id);
+        saveSessionDraft(session);
+        openSession(session.id, true);
       }
 
       document.querySelectorAll(".mode-option").forEach((button) => button.addEventListener("click", () => {
@@ -1777,6 +1900,7 @@
       byId("saveGame").addEventListener("click", saveGame);
       byId("clearScores").addEventListener("click", clearScores);
       byId("cancelGameEdit").addEventListener("click", cancelGameEdit);
+      byId("editSession").addEventListener("change", updateSessionEditMode);
       byId("settlementChipRate").addEventListener("input", updateChipPreview);
       byId("cancelSettlement").addEventListener("click", cancelSettlement);
       byId("confirmSettlement").addEventListener("click", confirmSettlement);
